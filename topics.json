@@ -1,0 +1,119 @@
+{
+  "local-plan": {
+    "name": "Local plans",
+    "singular": "local plan",
+    "dataset": "local-plan",
+    "boundary": "local-plan-boundary",
+    "timetable": "local-plan-timetable",
+    "boundaryField": "local-plan-boundary",
+    "authorityField": "local-planning-authorities",
+    "summary": "A local plan sets out the vision and framework for the future development of a local planning authority area. It is prepared by the local planning authority and, once adopted, is used to decide planning applications.",
+    "expected": 337,
+    "expectedNote": "local planning authorities",
+    "guidance": "https://www.planning.data.gov.uk/guidance/specifications/local-plan",
+    "related": [
+      {
+        "dataset": "local-plan-boundary",
+        "description": "The boundary covered by a local plan."
+      },
+      {
+        "dataset": "local-plan-timetable",
+        "description": "Past and predicted milestones when producing a local plan."
+      },
+      {
+        "dataset": "local-plan-event",
+        "description": "The different event types in a local plan timetable."
+      },
+      {
+        "dataset": "local-plan-process",
+        "description": "The examination process under which a local plan is produced."
+      },
+      {
+        "dataset": "local-plan-document",
+        "description": "Documents associated with a local plan."
+      },
+      {
+        "dataset": "local-plan-housing",
+        "description": "Housing numbers for a local planning authority in a local plan."
+      },
+      {
+        "dataset": "local-planning-authority",
+        "description": "Local planning authorities and their boundaries."
+      },
+      {
+        "dataset": "local-planning-group",
+        "description": "Groups of local authorities responsible for a joint local plan."
+      }
+    ]
+  },
+  "minerals-plan": {
+    "name": "Minerals plans",
+    "singular": "minerals plan",
+    "dataset": "minerals-plan",
+    "boundary": "minerals-plan-boundary",
+    "timetable": null,
+    "boundaryField": "minerals-plan-boundary",
+    "authorityField": "minerals-and-waste-planning-authorities",
+    "summary": "A minerals plan sets out where and how minerals such as sand, gravel and crushed rock will be extracted in an area. It is prepared by a minerals planning authority.",
+    "expected": null,
+    "expectedNote": null,
+    "guidance": "https://www.planning.data.gov.uk/guidance/",
+    "related": [
+      {
+        "dataset": "minerals-plan-boundary",
+        "description": "The boundary covered by a minerals plan."
+      },
+      {
+        "dataset": "minerals-and-waste-planning-authority",
+        "description": "Minerals and waste planning authority boundaries."
+      },
+      {
+        "dataset": "local-plan-process",
+        "description": "The examination process under which a plan is produced."
+      },
+      {
+        "dataset": "local-planning-authority",
+        "description": "Local planning authorities and their boundaries."
+      },
+      {
+        "dataset": "waste-plan",
+        "description": "Waste plans prepared by a minerals and waste planning authority."
+      }
+    ]
+  },
+  "waste-plan": {
+    "name": "Waste plans",
+    "singular": "waste plan",
+    "dataset": "waste-plan",
+    "boundary": "waste-plan-boundary",
+    "timetable": null,
+    "boundaryField": "waste-plan-boundary",
+    "authorityField": "minerals-and-waste-planning-authorities",
+    "summary": "A waste plan sets out how an area will manage the waste it produces, including where new waste facilities can be built. It is prepared by a waste planning authority.",
+    "expected": null,
+    "expectedNote": null,
+    "guidance": "https://www.planning.data.gov.uk/guidance/",
+    "related": [
+      {
+        "dataset": "waste-plan-boundary",
+        "description": "The boundary covered by a waste plan."
+      },
+      {
+        "dataset": "minerals-and-waste-planning-authority",
+        "description": "Minerals and waste planning authority boundaries."
+      },
+      {
+        "dataset": "local-plan-process",
+        "description": "The examination process under which a plan is produced."
+      },
+      {
+        "dataset": "local-planning-authority",
+        "description": "Local planning authorities and their boundaries."
+      },
+      {
+        "dataset": "minerals-plan",
+        "description": "Minerals plans prepared by a minerals and waste planning authority."
+      }
+    ]
+  }
+}
