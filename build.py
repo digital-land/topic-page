@@ -87,7 +87,7 @@ def build(slug, topic):
                 {
                     "plan": t[topic["dataset"]],
                     "event": t[f"{topic['dataset']}-event"],
-                    "date": t["event-date"],
+                    "date": t["event-date"] or t["start-date"],
                     "earliest": t["predicted-earliest-date"],
                     "latest": t["predicted-latest-date"],
                 }

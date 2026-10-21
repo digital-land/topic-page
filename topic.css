@@ -28,3 +28,5 @@ body, .govuk-template__body, [class*="govuk-"], input, button, .chart text {
 }
 .topic-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
 .topic-list li { border-top: 5px solid #1d70b8; padding-top: 10px; }
+.journey { stroke-width: 1.5; opacity: 0.35; stroke-linejoin: round; cursor: pointer; }
+.journey:hover { stroke-width: 3.5; opacity: 1; }

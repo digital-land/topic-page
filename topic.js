@@ -23,6 +23,27 @@ const EVENT_GROUP = {
   adopted: "adopted",
   "plan-withdrawn": "withdrawn",
 };
+const STAGES = ["Early consultation", "Publication", "Submitted", "Examination concluded", "Adopted"];
+const EVENT_STAGE = {
+  commenced: 0,
+  "scoping-consultation-start": 0,
+  "content-consultation-start": 0,
+  "reg-18-draft-local-plan-published": 0,
+  "reg-18-consultation-start": 0,
+  "reg-18-public-consultation-start": 0,
+  "reg-19-publication-local-plan-published": 1,
+  "reg-19-public-consultation-start": 1,
+  "proposed-plan-consultation-start": 1,
+  "submit-plan-for-examination": 2,
+  "examination-submitted": 2,
+  "planning-inspectorate-examination-start": 2,
+  "planning-inspectorate-found-sound": 3,
+  "examination-recommendations-published": 3,
+  "inspector-report-published": 3,
+  "planning-inspectorate-examination-end": 3,
+  "plan-adopted": 4,
+  adopted: 4,
+};
 const STATUS_LABEL = {
   adopted: "Adopted",
   "regulation-18": "Regulation 18 consultation",
@@ -178,8 +199,68 @@ function renderTimeline() {
   el.innerHTML =
     `<p class="govuk-body">Number of plans reaching each milestone, by year, from the timetable dataset. ${data.counts.events.toLocaleString("en-GB")} events across ${new Set(data.events.map((e) => e.plan)).size} plans.</p>` +
     `<div class="chart-key">${groups.map((g) => `<span class="legend-item"><span class="swatch" style="background:${GROUPS[g].colour}"></span>${GROUPS[g].label}</span>`).join("")}</div>` +
-    `<div class="chart-wrap">${svg}</div><div id="plan-timeline" aria-live="polite"></div>` +
+    `<div class="chart-wrap">${svg}</div>` +
+    renderJourney() +
+    `<div id="plan-timeline" aria-live="polite"></div>` +
     `<p class="govuk-body-s">Select a plan on the map or in the search results to see its own timetable.</p>`;
+}
+
+function renderJourney() {
+  const byPlan = {};
+  data.events.forEach((e) => {
+    const stage = EVENT_STAGE[e.event];
+    if (stage === undefined || !e.date) return;
+    const stages = (byPlan[e.plan] ??= {});
+    if (!stages[stage] || e.date < stages[stage]) stages[stage] = e.date;
+  });
+  const withdrawn = new Set(data.events.filter((e) => e.event === "plan-withdrawn").map((e) => e.plan));
+  const names = Object.fromEntries(data.plans.map((p) => [p.reference, p.name]));
+  const journeys = Object.entries(byPlan)
+    .map(([ref, st]) => ({
+      ref,
+      points: Object.entries(st)
+        .map(([stage, date]) => ({ stage: +stage, t: new Date(date).getTime(), date }))
+        .filter((p) => p.t >= Date.UTC(2004, 0, 1))
+        .sort((a, b) => a.stage - b.stage),
+      outcome: withdrawn.has(ref) ? "withdrawn" : st[4] ? "adopted" : "progress",
+    }))
+    .filter((j) => j.points.length >= 2);
+  if (!journeys.length) return "";
+  const colour = { adopted: "#00703c", progress: "#1d70b8", withdrawn: "#d4351c" };
+  const label = { adopted: "Adopted", progress: "In progress", withdrawn: "Withdrawn" };
+  const t0 = Date.UTC(2004, 0, 1);
+  const t1 = Math.max(...journeys.flatMap((j) => j.points.map((p) => p.t)));
+  const [y0, y1] = [2004, new Date(t1).getUTCFullYear() + 1];
+  const [w, h, ml, mr, mt, mb] = [Math.max(760, (y1 - y0) * 40 + 200), 360, 170, 20, 10, 30];
+  const sx = (t) => ml + ((t - t0) / (Date.UTC(y1, 0, 1) - t0)) * (w - ml - mr);
+  const sy = (s) => h - mb - (s / (STAGES.length - 1)) * (h - mb - mt - 20) - 10;
+  let svg = `<svg class="chart" viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;min-width:640px" role="img" aria-label="Bump chart of each plan's progress through the stages over time">`;
+  STAGES.forEach((l, i) => (svg += `<line class="grid" x1="${ml}" x2="${w - mr}" y1="${sy(i)}" y2="${sy(i)}"/><text x="${ml - 8}" y="${sy(i) + 4}" text-anchor="end">${l}</text>`));
+  for (let y = y0; y <= y1; y += 2) svg += `<text x="${sx(Date.UTC(y, 0, 1))}" y="${h - 8}" text-anchor="middle">${y}</text>`;
+  const days = (a, b) => (b - a) / 864e5;
+  const order = { progress: 0, withdrawn: 1, adopted: 2 };
+  journeys
+    .sort((a, b) => order[a.outcome] - order[b.outcome])
+    .forEach((j) => {
+      const pts = j.points.map((p) => `${sx(p.t).toFixed(1)},${sy(p.stage).toFixed(1)}`).join(" ");
+      const [a, b] = [j.points[0], j.points.at(-1)];
+      const dur = ((days(a.t, b.t) / 365.25)).toFixed(1);
+      svg += `<polyline class="journey" data-timeline="${esc(j.ref)}" points="${pts}" fill="none" stroke="${colour[j.outcome]}"><title>${esc(names[j.ref] ?? j.ref)}: ${esc(STAGES[a.stage])} to ${esc(STAGES[b.stage])} in ${dur} years (${label[j.outcome].toLowerCase()})</title></polyline>`;
+    });
+  svg += `</svg>`;
+  const durations = journeys
+    .filter((j) => j.outcome === "adopted" && j.points[0].stage < 3)
+    .map((j) => days(j.points[0].t, j.points.at(-1).t) / 365.25)
+    .sort((a, b) => a - b);
+  const median = durations.length ? durations[Math.floor(durations.length / 2)].toFixed(1) : null;
+  return (
+    `<h3 class="govuk-heading-m govuk-!-margin-top-6">Progress through the stages</h3>` +
+    `<p class="govuk-body">One line per plan, from the first date recorded at each stage. ${journeys.length} plans have dates for at least two stages.${
+      median ? ` For the ${durations.length} adopted plans with early consultation or publication dates, the median time from first recorded stage to adoption is ${median} years.` : ""
+    } Select a line to see the plan's timetable.</p>` +
+    `<div class="chart-key">${Object.keys(colour).map((k) => `<span class="legend-item"><span class="swatch" style="background:${colour[k]}"></span>${label[k]}</span>`).join("")}</div>` +
+    `<div class="chart-wrap">${svg}</div>`
+  );
 }
 
 function showPlanTimeline(ref) {
