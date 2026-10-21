@@ -13,6 +13,8 @@ Each topic page has:
 - links to the specification, guidance and related datasets
 - search and facets over the plans
 
+![Screenshot of the local plans topic page](docs/screenshot.png)
+
 ## Running
 
 Requires Python and GNU make.
