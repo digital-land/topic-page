@@ -20,7 +20,7 @@ Requires Python and GNU make.
     make data     # fetch datasets and build data/*.json
     make serve    # http://localhost:8000/
 
-Open `/` for the list of topics, or `/topic/local-plan` directly.
+Open `/` for the list of topics, or `/topic/local-plan` directly (redirects to `topic.html?topic=local-plan`, which also works on GitHub Pages).
 
 ## Files
 
@@ -28,7 +28,7 @@ Open `/` for the list of topics, or `/topic/local-plan` directly.
 | --- | --- |
 | `topics.json` | topic configuration: datasets, summary, guidance and related datasets |
 | `build.py` | downloads CSVs from `files.planning.data.gov.uk` (cached in `cache/`) and writes simplified boundaries, plans and events to `data/` |
-| `server.py` | static server mapping `/` to `index.html` and `/topic/*` to `topic.html` |
+| `server.py` | static server mapping `/` to `index.html` and `/topic/*` to `topic.html?topic=*` |
 | `index.html` | index of topics |
 | `topic.html`, `topic.js`, `topic.css` | the topic page |
 

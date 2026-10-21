@@ -7,7 +7,10 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?")[0]
         if path.startswith("/topic/"):
-            self.path = "/topic.html"
+            self.send_response(302)
+            self.send_header("Location", "/topic.html?topic=" + path.split("/")[2])
+            self.end_headers()
+            return
         elif path == "/":
             self.path = "/index.html"
         super().do_GET()

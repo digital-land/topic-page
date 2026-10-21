@@ -44,22 +44,20 @@ const fmt = (d) =>
     ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : "";
 const statusOf = (p) => STATUS_LABEL[p["local-plan-process"]] ?? p["local-plan-process"];
-const slugFromPath = () =>
-  new URLSearchParams(location.search).get("topic") ||
-  location.pathname.split("/").filter(Boolean).pop();
+const slugFromPath = () => new URLSearchParams(location.search).get("topic");
 
 let topic, data, planByRef, state = { page: 1 };
 
 async function init() {
   const slug = slugFromPath();
-  const topics = await (await fetch("/topics.json")).json();
+  const topics = await (await fetch("topics.json")).json();
   topic = topics[slug];
   if (!topic) {
     $("error").hidden = false;
     $("error-text").textContent = `Topic "${slug}" not found. Try ${Object.keys(topics).join(", ")}.`;
     return;
   }
-  data = await (await fetch(`/data/${slug}.json`)).json();
+  data = await (await fetch(`data/${slug}.json`)).json();
   data.plans.sort((a, b) => a.name.localeCompare(b.name));
   document.title = `${topic.name} - Planning Data`;
   $("crumb").textContent = topic.name;

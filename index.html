@@ -5,7 +5,7 @@
   <title>Topics - Planning Data</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.4.0/dist/govuk/govuk-frontend.min.css">
-    <link rel="stylesheet" href="/topic.css">
+    <link rel="stylesheet" href="topic.css">
 </head>
 <body class="govuk-template__body">
   <a href="#main-content" class="govuk-skip-link">Skip to main content</a>
@@ -29,10 +29,10 @@
   <footer class="govuk-footer"><div class="govuk-width-container"><span class="govuk-footer__licence-description">
     Prototype. Data © Crown copyright and database right, licensed under the Open Government Licence v3.0.</span></div></footer>
   <script>
-    fetch("/topics.json").then(r => r.json()).then(t => {
+    fetch("topics.json").then(r => r.json()).then(t => {
       const esc = s => String(s).replace(/[&<>"']/g, c => "&#" + c.charCodeAt(0) + ";");
       document.getElementById("topics").innerHTML = Object.entries(t).map(([k, v]) =>
-        '<li><h2 class="govuk-heading-m"><a class="govuk-link" href="/topic/' + esc(k) + '">' + esc(v.name) + '</a></h2><p class="govuk-body">' + esc(v.summary) + '</p></li>').join("");
+        '<li><h2 class="govuk-heading-m"><a class="govuk-link" href="topic.html?topic=' + esc(k) + '">' + esc(v.name) + '</a></h2><p class="govuk-body">' + esc(v.summary) + '</p></li>').join("");
     });
   </script>
 </body>
