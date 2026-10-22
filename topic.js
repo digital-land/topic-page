@@ -83,14 +83,15 @@ let topic, data, planByRef, state = { page: 1 };
 
 async function init() {
   const slug = slugFromPath();
-  const topics = await (await fetch("topics.json")).json();
+  // ask the server each time so a rebuilt data file shows straight away
+  const topics = await (await fetch("topics.json", { cache: "no-cache" })).json();
   topic = topics[slug];
   if (!topic) {
     $("error").hidden = false;
     $("error-text").textContent = `Topic "${slug}" not found. Try ${Object.keys(topics).join(", ")}.`;
     return;
   }
-  data = await (await fetch(`data/${slug}.json`)).json();
+  data = await (await fetch(`data/${slug}.json`, { cache: "no-cache" })).json();
   data.plans.sort((a, b) => a.name.localeCompare(b.name));
   // only keep timetables linked to a plan in the dataset
   const refs = new Set(data.plans.map((p) => p.reference));

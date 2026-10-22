@@ -4,7 +4,7 @@
     "singular": "local plan",
     "dataset": "local-plan",
     "boundary": "local-plan-boundary",
-    "timetable": "local-plan-timetable",
+    "timetable": "plan-timetable",
     "boundaryField": "local-plan-boundary",
     "authorityField": "local-planning-authorities",
     "summary": "A local plan sets out the vision and framework for the future development of a local planning authority area. It is prepared by the local planning authority and, once adopted, is used to decide planning applications.",
@@ -17,8 +17,8 @@
         "description": "The boundary covered by a local plan."
       },
       {
-        "dataset": "local-plan-timetable",
-        "description": "Past and predicted milestones when producing a local plan."
+        "dataset": "plan-timetable",
+        "description": "Past and predicted milestones when producing a plan."
       },
       {
         "dataset": "local-plan-event",
@@ -51,7 +51,7 @@
     "singular": "minerals plan",
     "dataset": "minerals-plan",
     "boundary": "minerals-plan-boundary",
-    "timetable": null,
+    "timetable": "plan-timetable",
     "boundaryField": "minerals-plan-boundary",
     "authorityField": "minerals-and-waste-planning-authorities",
     "summary": "A minerals plan sets out where and how minerals such as sand, gravel and crushed rock will be extracted in an area. It is prepared by a minerals planning authority.",
@@ -62,6 +62,10 @@
       {
         "dataset": "minerals-plan-boundary",
         "description": "The boundary covered by a minerals plan."
+      },
+      {
+        "dataset": "plan-timetable",
+        "description": "Past and predicted milestones when producing a plan."
       },
       {
         "dataset": "minerals-and-waste-planning-authority",
@@ -86,7 +90,7 @@
     "singular": "waste plan",
     "dataset": "waste-plan",
     "boundary": "waste-plan-boundary",
-    "timetable": null,
+    "timetable": "plan-timetable",
     "boundaryField": "waste-plan-boundary",
     "authorityField": "minerals-and-waste-planning-authorities",
     "summary": "A waste plan sets out how an area will manage the waste it produces, including where new waste facilities can be built. It is prepared by a waste planning authority.",
@@ -97,6 +101,10 @@
       {
         "dataset": "waste-plan-boundary",
         "description": "The boundary covered by a waste plan."
+      },
+      {
+        "dataset": "plan-timetable",
+        "description": "Past and predicted milestones when producing a plan."
       },
       {
         "dataset": "minerals-and-waste-planning-authority",

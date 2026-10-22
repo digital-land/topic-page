@@ -85,16 +85,20 @@ def build(slug, topic):
         rows.append(row)
     events = []
     if topic["timetable"]:
+        # local-plan-timetable links on local-plan; the shared plan-timetable on plan
+        key = "plan" if topic["timetable"] == "plan-timetable" else topic["dataset"]
+        refs = {p["reference"] for p in plans}
         for t in fetch(topic["timetable"]):
-            events.append(
-                {
-                    "plan": t[topic["dataset"]],
-                    "event": t[f"{topic['dataset']}-event"],
-                    "date": t["event-date"] or t["start-date"],
-                    "earliest": t["predicted-earliest-date"],
-                    "latest": t["predicted-latest-date"],
-                }
-            )
+            event = {
+                "plan": t[key],
+                "event": t[f"{key}-event"],
+                "date": t["event-date"] or t.get("actual-date") or t["start-date"],
+                "earliest": t.get("predicted-earliest-date") or t.get("predicted-date", ""),
+                "latest": t.get("predicted-latest-date", ""),
+            }
+            # skip milestones with no date at all (unfilled timetable templates)
+            if event["plan"] in refs and (event["date"] or event["earliest"]):
+                events.append(event)
     out = {
         "plans": rows,
         "boundaries": {"type": "FeatureCollection", "features": features},
