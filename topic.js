@@ -83,6 +83,9 @@ async function init() {
   }
   data = await (await fetch(`data/${slug}.json`)).json();
   data.plans.sort((a, b) => a.name.localeCompare(b.name));
+  // only keep timetables linked to a plan in the dataset
+  const refs = new Set(data.plans.map((p) => p.reference));
+  data.events = data.events.filter((e) => refs.has(e.plan));
   document.title = `${topic.name} - Planning Data`;
   $("crumb").textContent = topic.name;
   $("heading").textContent = topic.name;
@@ -200,7 +203,7 @@ function renderTimeline() {
   }
   svg += `<line class="axis" x1="${ml}" x2="${w}" y1="${h - mb}" y2="${h - mb}"/></svg>`;
   el.innerHTML =
-    `<p class="govuk-body">Number of plans reaching each milestone, by year, from the timetable dataset. ${data.counts.events.toLocaleString("en-GB")} events across ${new Set(data.events.map((e) => e.plan)).size} plans.</p>` +
+    `<p class="govuk-body">Number of plans reaching each milestone, by year, from the timetable dataset. ${data.events.length.toLocaleString("en-GB")} events across ${new Set(data.events.map((e) => e.plan)).size} plans.</p>` +
     `<div class="chart-key">${groups.map((g) => `<span class="legend-item"><span class="swatch" style="background:${GROUPS[g].colour}"></span>${GROUPS[g].label}</span>`).join("")}</div>` +
     `<div class="chart-wrap">${svg}</div>` +
     renderJourney() +
@@ -271,8 +274,10 @@ function showPlanTimeline(ref) {
   const events = data.events
     .filter((e) => e.plan === ref)
     .sort((a, b) => (a.date || a.earliest || "").localeCompare(b.date || b.earliest || ""));
+  const caption = p["authority-name"] ? `<span class="govuk-caption-m">${esc(p["authority-name"])}</span>` : "";
+  const link = `<p class="govuk-body"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">View this plan on planning.data.gov.uk</a></p>`;
   $("plan-timeline").innerHTML =
-    `<div class="plan-timeline"><h3 class="govuk-heading-m">${esc(p.name)}</h3><ol>` +
+    `<div class="plan-timeline">${caption}<h3 class="govuk-heading-m">${esc(p.name)}</h3>${link}<ol>` +
     events
       .map((e) => {
         const c = GROUPS[EVENT_GROUP[e.event]]?.colour ?? "#b1b4b6";
