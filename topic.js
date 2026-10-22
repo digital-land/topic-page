@@ -280,12 +280,15 @@ function renderTimeline() {
   const [y0, y1] = [Math.min(...years), Math.max(...years)];
   const groups = Object.keys(GROUPS);
   const totals = (y) => groups.reduce((s, g) => s + (counts[y]?.[g]?.size ?? 0), 0);
-  const max = Math.max(...years.map(totals));
-  const [w, h, ml, mb, mt] = [Math.max(720, (y1 - y0 + 1) * 34 + 60), 320, 40, 30, 10];
+  const biggest = Math.max(...years.map(totals));
+  // round the axis up to the next gridline so the tallest bar sits under a label
+  const step = Math.ceil(biggest / 5 / 10) * 10;
+  const max = Math.ceil(biggest / step) * step;
+  const [w, h, ml, mb, mt] = [960, 320, 40, 30, 10];
   const bw = (w - ml) / (y1 - y0 + 1);
   const sy = (v) => h - mb - (v / max) * (h - mb - mt);
-  let svg = `<svg class="chart" width="${w}" height="${h}" role="img" aria-label="Stacked bar chart of plans reaching each milestone by year">`;
-  for (let t = 0; t <= max; t += Math.ceil(max / 5 / 10) * 10) {
+  let svg = `<svg class="chart" viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;min-width:640px" role="img" aria-label="Stacked bar chart of plans reaching each milestone by year">`;
+  for (let t = 0; t <= max; t += step) {
     svg += `<line class="grid" x1="${ml}" x2="${w}" y1="${sy(t)}" y2="${sy(t)}"/><text x="${ml - 6}" y="${sy(t) + 4}" text-anchor="end">${t}</text>`;
   }
   for (let y = y0; y <= y1; y++) {
