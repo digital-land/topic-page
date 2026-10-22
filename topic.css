@@ -20,6 +20,10 @@
 .map-panel__close { top: 8px; right: 8px; background-size: 14px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M1 1l12 12M13 1L1 13' stroke='%230b0c0c' stroke-width='2.5'/%3E%3C/svg%3E"); }
 .map-panel__open { top: 15px; right: 15px; box-shadow: 0 0 3px rgba(11, 12, 12, 0.8); background-size: 18px 17px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='17' viewBox='0 0 18 17'%3E%3Cpath d='M16.215,9.81L18,11L9,17L0,11L1.785,9.81L8.945,14.583C8.978,14.606 9.022,14.606 9.055,14.583L16.215,9.81Z' style='fill:%230b0c0c;'/%3E%3Cpath d='M9,0L0,6L9,12L18,6L9,0ZM9,2.38L14.43,6L9,9.62L3.57,6L9,2.38Z' style='fill:%230b0c0c;'/%3E%3C/svg%3E"); }
 .map-panel__open[hidden] { display: none; }
+.boundaries-pane { z-index: 400; opacity: 0.75; }
+.selected-pane { z-index: 450; pointer-events: none; }
+.boundaries-pane .leaflet-interactive:focus { outline: none; }
+#map-selected h3:not(:first-child) { margin-top: 20px; }
 .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .swatch { width: 18px; height: 18px; display: inline-block; border: 1px solid #0b0c0c; flex: none; }
 .diagram { display: block; max-width: 100%; height: auto; border: 1px solid #b1b4b6; padding: 10px; background: #fff; }

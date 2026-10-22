@@ -56,6 +56,8 @@ def simplify(geometry):
 def build(slug, topic):
     plans = fetch(topic["dataset"])
     boundaries = fetch(topic["boundary"])
+    # abolished authorities (e.g. districts merged into a unitary) have an end-date
+    ended = {a["reference"]: a["end-date"] for a in fetch("local-planning-authority")}
     names = {}
     features = []
     for b in boundaries:
@@ -68,6 +70,7 @@ def build(slug, topic):
                         "reference": b["reference"],
                         "name": b["name"],
                         "entity": b["entity"],
+                        "end-date": b.get("end-date") or ended.get(b["reference"], ""),
                     },
                     "geometry": simplify(b["geometry"]),
                 }

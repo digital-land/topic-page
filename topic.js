@@ -1,9 +1,18 @@
+// GOV.UK colours, one per meaning across the page
+const COLOUR = {
+  progress: "#1d70b8", // blue
+  adopted: "#00703c", // green
+  withdrawn: "#d4351c", // red
+  submitted: "#f47738", // orange
+  notStated: "#505a5f", // dark grey
+  sound: "#4c2c92", // purple
+};
 const GROUPS = {
-  draft: { label: "Draft and consultation", colour: "#1d70b8" },
-  submitted: { label: "Submitted for examination", colour: "#f47738" },
-  sound: { label: "Found sound or inspector report", colour: "#4c2c92" },
-  adopted: { label: "Adopted", colour: "#00703c" },
-  withdrawn: { label: "Withdrawn", colour: "#d4351c" },
+  draft: { label: "Draft and consultation", colour: COLOUR.progress },
+  submitted: { label: "Submitted for examination", colour: COLOUR.submitted },
+  sound: { label: "Found sound or inspector report", colour: COLOUR.sound },
+  adopted: { label: "Adopted", colour: COLOUR.adopted },
+  withdrawn: { label: "Withdrawn", colour: COLOUR.withdrawn },
 };
 const EVENT_GROUP = {
   "reg-18-draft-local-plan-published": "draft",
@@ -114,9 +123,9 @@ function renderStats() {
 }
 
 function boundaryColour(plans) {
-  if (plans.some(isAdopted)) return "#00703c";
-  if (plans.some((p) => p["local-plan-process"])) return "#1d70b8";
-  return "#505a5f";
+  if (plans.some(isAdopted)) return COLOUR.adopted;
+  if (plans.some((p) => p["local-plan-process"])) return COLOUR.progress;
+  return COLOUR.notStated;
 }
 
 function planLine(p) {
@@ -126,6 +135,51 @@ function planLine(p) {
   }</li>`;
 }
 
+const polygons = (g) => (g.type === "MultiPolygon" ? g.coordinates : [g.coordinates]);
+const ringArea = (r) => Math.abs(r.reduce((s, [x1, y1], i) => { const [x2, y2] = r[(i + 1) % r.length]; return s + x1 * y2 - x2 * y1; }, 0)) / 2;
+const featureArea = (f) => polygons(f.geometry).reduce((s, [outer, ...holes]) => s + ringArea(outer) - holes.reduce((h, r) => h + ringArea(r), 0), 0);
+// even-odd test over every ring, so holes are excluded
+function featureContains(f, [x, y]) {
+  let inside = false;
+  for (const ring of polygons(f.geometry).flat())
+    for (let i = 0, k = ring.length - 1; i < ring.length; k = i++) {
+      const [[x1, y1], [x2, y2]] = [ring[i], ring[k]];
+      if (y1 > y !== y2 > y && x < ((x2 - x1) * (y - y1)) / (y2 - y1) + x1) inside = !inside;
+    }
+  return inside;
+}
+
+const bbox = (f) => {
+  const pts = polygons(f.geometry).flat(2);
+  return [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))];
+};
+
+// former authorities that now sit (almost) wholly inside a current boundary, such as the
+// four districts that became Somerset Council, found by sampling points across each one
+function predecessors(features) {
+  const out = {};
+  const current = features.filter((f) => !f.properties.former).map((f) => [f, bbox(f)]);
+  for (const old of features.filter((f) => f.properties.former)) {
+    const [x0, y0, x1, y1] = bbox(old);
+    const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
+    const samples = [];
+    for (let i = 0.5; i < 20; i++)
+      for (let k = 0.5; k < 20; k++) {
+        const p = [x0 + ((x1 - x0) * i) / 20, y0 + ((y1 - y0) * k) / 20];
+        if (featureContains(old, p)) samples.push(p);
+      }
+    for (const [f, [a, b, c, d]] of current) {
+      if (f.properties.area <= old.properties.area || cx < a || cx > c || cy < b || cy > d) continue;
+      if (samples.length && samples.filter((p) => featureContains(f, p)).length >= 0.9 * samples.length)
+        (out[f.properties.reference] ??= []).push(old);
+    }
+  }
+  Object.values(out).forEach((olds) => olds.sort((a, b) => a.properties.name.localeCompare(b.properties.name)));
+  return out;
+}
+
+const boundaryName = (f) => f.properties.name + (f.properties.former ? " (former)" : "");
+
 function renderMap() {
   planByRef = {};
   data.plans.forEach((p) => (planByRef[p.boundary] ??= []).push(p));
@@ -134,33 +188,64 @@ function renderMap() {
     maxZoom: 18,
     attribution: "© OpenStreetMap contributors",
   }).addTo(map);
-  const layer = L.geoJSON(data.boundaries, {
+  // boundaries overlap (joint plans, reorganised councils), so draw them opaque in one
+  // see-through pane so overlaps don't darken: former authorities underneath, then
+  // current ones with the largest (e.g. new unitary councils) on top
+  map.createPane("boundaries").classList.add("boundaries-pane");
+  const today = new Date().toISOString().slice(0, 10);
+  const features = data.boundaries.features
+    .map((f) => ({ ...f, properties: { ...f.properties, area: featureArea(f), former: Boolean(f.properties["end-date"]) && f.properties["end-date"] <= today } }))
+    .sort((a, b) => b.properties.former - a.properties.former || a.properties.area - b.properties.area);
+  const layer = L.geoJSON({ type: "FeatureCollection", features }, {
+    pane: "boundaries",
     style: (f) => ({
       color: "#0b0c0c",
       weight: 1,
-      fillOpacity: 0.45,
+      fillOpacity: 1,
       fillColor: boundaryColour(planByRef[f.properties.reference] ?? []),
     }),
-    onEachFeature: (f, l) => {
-      const plans = planByRef[f.properties.reference] ?? [];
-      l.bindTooltip(esc(f.properties.name));
-      l.on("click", () => {
-        toggleMapPanel(true, false);
-        $("map-selected").innerHTML =
-          `<h3 class="govuk-heading-s">${esc(f.properties.name)}</h3>` +
+    onEachFeature: (f, l) => l.bindTooltip(esc(boundaryName(f))),
+  }).addTo(map);
+  const formerOf = predecessors(features);
+  // outline the selected boundary along its edge, in the GOV.UK focus colours
+  map.createPane("selected").classList.add("selected-pane");
+  const selected = L.layerGroup().addTo(map);
+  // list the plans for every boundary under the click, top of the map first, with each
+  // current authority followed by all the former authorities it replaced
+  layer.on("click", (e) => {
+    const here = features.filter((f) => featureContains(f, [e.latlng.lng, e.latlng.lat])).reverse();
+    const shown = new Set();
+    const sections = here.flatMap((f) => {
+      if (shown.has(f)) return [];
+      const olds = (formerOf[f.properties.reference] ?? []).filter((o) => !shown.has(o));
+      [f, ...olds].forEach((x) => shown.add(x));
+      return [f, ...olds];
+    });
+    selected.clearLayers();
+    if (here[0])
+      [{ color: "#0b0c0c", weight: 6 }, { color: "#ffdd00", weight: 3 }].forEach((style) =>
+        L.geoJSON(here[0], { pane: "selected", interactive: false, style: { ...style, fill: false } }).addTo(selected),
+      );
+    toggleMapPanel(true, false);
+    $("map-selected").innerHTML = sections
+      .map((f) => {
+        const plans = planByRef[f.properties.reference] ?? [];
+        return (
+          `<h3 class="govuk-heading-s">${esc(boundaryName(f))}</h3>` +
           (plans.length
             ? `<ul class="govuk-list">${plans.map(planLine).join("")}</ul>`
-            : `<p class="govuk-body">No ${topic.singular} linked to this boundary.</p>`);
-      });
-    },
-  }).addTo(map);
+            : `<p class="govuk-body">No ${topic.singular} linked to this boundary.</p>`)
+        );
+      })
+      .join("");
+  });
   // keep boundaries clear of the key panel, unless the map is too narrow to fit both
   const keyWidth = $("map-panel").offsetWidth + 30;
   const padRight = map.getSize().x - keyWidth >= 300 ? keyWidth : 0;
   if (layer.getBounds().isValid()) map.fitBounds(layer.getBounds(), { paddingBottomRight: [padRight, 0] });
   const noBoundary = data.plans.filter((p) => !planByRef[p.boundary] || !data.boundaries.features.some((f) => f.properties.reference === p.boundary)).length;
   $("legend").innerHTML =
-    [["#00703c", "Has an adopted plan"], ["#1d70b8", "Plan in progress"], ["#505a5f", "Status not stated"]]
+    [[COLOUR.adopted, "Has an adopted plan"], [COLOUR.progress, "Plan in progress"], [COLOUR.notStated, "Status not stated"]]
       .map(([c, l]) => `<div class="legend-item"><span class="swatch" style="background:${c}"></span>${l}</div>`)
       .join("") +
     `<p class="govuk-body-s">${noBoundary} of ${data.plans.length} plans have no boundary on the map. Select an area to see its plans.</p>`;
@@ -246,7 +331,7 @@ function renderJourney() {
     }))
     .filter((j) => j.points.length >= 2);
   if (!journeys.length) return "";
-  const colour = { adopted: "#00703c", progress: "#1d70b8", withdrawn: "#d4351c" };
+  const colour = { adopted: COLOUR.adopted, progress: COLOUR.progress, withdrawn: COLOUR.withdrawn };
   const label = { adopted: "Adopted", progress: "In progress", withdrawn: "Withdrawn" };
   const t0 = Date.UTC(2004, 0, 1);
   const t1 = Math.max(...journeys.flatMap((j) => j.points.map((p) => p.t)));
