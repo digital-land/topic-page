@@ -37,12 +37,17 @@
 
       <section class="topic-section">
         <h2 class="govuk-heading-l">Map</h2>
-        <div class="govuk-grid-row">
-          <div class="govuk-grid-column-two-thirds"><div id="map" role="application" aria-label="Map of plan boundaries"></div></div>
-          <div class="govuk-grid-column-one-third" id="map-side">
-            <div id="legend"></div>
-            <div id="map-selected"></div>
+        <div class="map-wrap">
+          <div id="map" role="application" aria-label="Map of plan boundaries"></div>
+          <div class="map-panel" id="map-panel" tabindex="-1">
+            <div class="map-panel__heading"><h3 class="govuk-heading-s govuk-!-margin-bottom-0">Key</h3></div>
+            <button class="map-panel__close" type="button" aria-controls="map-panel"><span class="govuk-visually-hidden">Close key</span></button>
+            <div class="map-panel__content">
+              <div id="legend"></div>
+              <div id="map-selected"></div>
+            </div>
           </div>
+          <button class="map-panel__open" type="button" aria-controls="map-panel" hidden><span class="govuk-visually-hidden">Open key</span></button>
         </div>
       </section>
 

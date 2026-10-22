@@ -145,6 +145,7 @@ function renderMap() {
       const plans = planByRef[f.properties.reference] ?? [];
       l.bindTooltip(esc(f.properties.name));
       l.on("click", () => {
+        toggleMapPanel(true, false);
         $("map-selected").innerHTML =
           `<h3 class="govuk-heading-s">${esc(f.properties.name)}</h3>` +
           (plans.length
@@ -153,13 +154,26 @@ function renderMap() {
       });
     },
   }).addTo(map);
-  if (layer.getBounds().isValid()) map.fitBounds(layer.getBounds());
+  // keep boundaries clear of the key panel, unless the map is too narrow to fit both
+  const keyWidth = $("map-panel").offsetWidth + 30;
+  const padRight = map.getSize().x - keyWidth >= 300 ? keyWidth : 0;
+  if (layer.getBounds().isValid()) map.fitBounds(layer.getBounds(), { paddingBottomRight: [padRight, 0] });
   const noBoundary = data.plans.filter((p) => !planByRef[p.boundary] || !data.boundaries.features.some((f) => f.properties.reference === p.boundary)).length;
   $("legend").innerHTML =
     [["#00703c", "Has an adopted plan"], ["#1d70b8", "Plan in progress"], ["#505a5f", "Status not stated"]]
       .map(([c, l]) => `<div class="legend-item"><span class="swatch" style="background:${c}"></span>${l}</div>`)
       .join("") +
     `<p class="govuk-body-s">${noBoundary} of ${data.plans.length} plans have no boundary on the map. Select an area to see its plans.</p>`;
+  document.querySelector(".map-panel__close").addEventListener("click", () => toggleMapPanel(false));
+  document.querySelector(".map-panel__open").addEventListener("click", () => toggleMapPanel(true));
+}
+
+function toggleMapPanel(open, moveFocus = true) {
+  const [panel, openBtn] = [$("map-panel"), document.querySelector(".map-panel__open")];
+  panel.hidden = !open;
+  openBtn.hidden = open;
+  openBtn.setAttribute("aria-expanded", open);
+  if (moveFocus) (open ? panel : openBtn).focus();
 }
 
 function renderTimeline() {

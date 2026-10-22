@@ -5,7 +5,21 @@
 .stat strong { display: block; font-size: 2.5rem; line-height: 1.1; font-weight: 700; }
 .stat span { font-size: 1rem; }
 #map { height: 520px; border: 1px solid #b1b4b6; }
-@media (max-width: 40.0525em) { #map-side { margin-top: 20px; } }
+/* key panel over the map, as on https://www.planning.data.gov.uk/map/ */
+.map-wrap { position: relative; }
+.map-panel { box-sizing: border-box; position: absolute; z-index: 1001; top: 15px; right: 15px; width: 330px; max-width: calc(100% - 80px); max-height: calc(100% - 30px); display: flex; flex-direction: column; background: #fff; box-shadow: 0 0 3px rgba(11, 12, 12, 0.8); }
+.map-panel[hidden] { display: none; }
+.map-panel__heading { padding: 15px 55px 15px 15px; border-bottom: 1px solid #b1b4b6; }
+.map-panel__content { padding: 15px; overflow-y: auto; }
+.map-panel__content .legend-item, .map-panel__content .govuk-body, .map-panel__content .govuk-body-s, .map-panel__content .govuk-list { font-size: 16px; line-height: 1.25; }
+.map-panel__content .govuk-body-s:last-child, .map-panel__content .govuk-list:last-child { margin-bottom: 0; }
+#map-selected:not(:empty) { margin-top: 15px; padding-top: 15px; border-top: 1px solid #b1b4b6; }
+.map-panel__open, .map-panel__close { position: absolute; z-index: 1002; width: 40px; height: 40px; margin: 0; padding: 0; border: 0; background: #fff no-repeat center; cursor: pointer; }
+.map-panel__open:hover, .map-panel__close:hover { background-color: #f3f2f1; }
+.map-panel__open:focus, .map-panel__close:focus { outline: 3px solid #fd0; box-shadow: inset 0 0 0 2px #0b0c0c; }
+.map-panel__close { top: 8px; right: 8px; background-size: 14px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M1 1l12 12M13 1L1 13' stroke='%230b0c0c' stroke-width='2.5'/%3E%3C/svg%3E"); }
+.map-panel__open { top: 15px; right: 15px; box-shadow: 0 0 3px rgba(11, 12, 12, 0.8); background-size: 18px 17px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='17' viewBox='0 0 18 17'%3E%3Cpath d='M16.215,9.81L18,11L9,17L0,11L1.785,9.81L8.945,14.583C8.978,14.606 9.022,14.606 9.055,14.583L16.215,9.81Z' style='fill:%230b0c0c;'/%3E%3Cpath d='M9,0L0,6L9,12L18,6L9,0ZM9,2.38L14.43,6L9,9.62L3.57,6L9,2.38Z' style='fill:%230b0c0c;'/%3E%3C/svg%3E"); }
+.map-panel__open[hidden] { display: none; }
 .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .swatch { width: 18px; height: 18px; display: inline-block; border: 1px solid #0b0c0c; flex: none; }
 .diagram { display: block; max-width: 100%; height: auto; border: 1px solid #b1b4b6; padding: 10px; background: #fff; }
