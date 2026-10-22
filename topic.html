@@ -35,54 +35,66 @@
       <p class="govuk-body-l" id="summary"></p>
       <div class="stats" id="stats"></div>
 
-      <h2 class="govuk-heading-l">Map</h2>
-      <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds"><div id="map" role="application" aria-label="Map of plan boundaries"></div></div>
-        <div class="govuk-grid-column-one-third" id="map-side">
-          <div id="legend"></div>
-          <div id="map-selected"></div>
+      <section class="topic-section">
+        <h2 class="govuk-heading-l">Map</h2>
+        <div class="govuk-grid-row">
+          <div class="govuk-grid-column-two-thirds"><div id="map" role="application" aria-label="Map of plan boundaries"></div></div>
+          <div class="govuk-grid-column-one-third" id="map-side">
+            <div id="legend"></div>
+            <div id="map-selected"></div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <h2 class="govuk-heading-l" id="timeline-heading">Timeline</h2>
-      <div id="timeline"></div>
+      <section class="topic-section">
+        <h2 class="govuk-heading-l" id="timeline-heading">Timeline</h2>
+        <div id="timeline"></div>
+      </section>
 
-      <h2 class="govuk-heading-l">Data model</h2>
-      <p class="govuk-body">All plan datasets share the <a class="govuk-link" href="https://digital-land.github.io/specification/specification/plan/">plan specification</a>.</p>
-      <img id="diagram" class="diagram" src="https://digital-land.github.io/specification/specification/plan/diagram.svg"
-           alt="Diagram of the plan data model showing the fields of a plan, its boundary and its timetable">
+      <section class="topic-section">
+        <h2 class="govuk-heading-l">Data model</h2>
+        <p class="govuk-body">All plan datasets share the <a class="govuk-link" href="https://digital-land.github.io/specification/specification/plan/">plan specification</a>.</p>
+        <img id="diagram" class="diagram" src="https://digital-land.github.io/specification/specification/plan/diagram.svg"
+             alt="Diagram of the plan data model showing the fields of a plan, its boundary and its timetable">
+      </section>
 
-      <h2 class="govuk-heading-l">Specification and guidance</h2>
-      <ul class="govuk-list govuk-list--bullet" id="links"></ul>
+      <section class="topic-section">
+        <h2 class="govuk-heading-l">Specification and guidance</h2>
+        <ul class="govuk-list govuk-list--bullet" id="links"></ul>
+      </section>
 
-      <h2 class="govuk-heading-l">Datasets</h2>
-      <div id="datasets"></div>
+      <section class="topic-section">
+        <h2 class="govuk-heading-l">Datasets</h2>
+        <div id="datasets"></div>
+      </section>
 
-      <h2 class="govuk-heading-l" id="search">Search</h2>
-      <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-third">
-          <form id="filters" class="filters">
-            <div class="govuk-form-group"><label class="govuk-label govuk-label--s" for="q">Search by name or authority</label>
-              <input class="govuk-input" id="q" type="search"></div>
-            <div class="govuk-form-group"><fieldset class="govuk-fieldset"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Status</legend>
-              <div class="govuk-checkboxes govuk-checkboxes--small" id="f-status"></div></fieldset></div>
-            <div class="govuk-form-group"><fieldset class="govuk-fieldset"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Start date</legend>
-              <div class="govuk-checkboxes govuk-checkboxes--small" id="f-period"></div></fieldset></div>
-            <div class="govuk-form-group"><fieldset class="govuk-fieldset" role="group"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Entry date</legend>
-              <div class="govuk-date-input">
-                <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-day">Day</label><input class="govuk-input govuk-date-input__input govuk-input--width-2" id="ed-day" inputmode="numeric"></div>
-                <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-month">Month</label><input class="govuk-input govuk-date-input__input govuk-input--width-2" id="ed-month" inputmode="numeric"></div>
-                <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-year">Year</label><input class="govuk-input govuk-date-input__input govuk-input--width-4" id="ed-year" inputmode="numeric"></div>
-              </div></fieldset></div>
-            <button class="govuk-button govuk-button--secondary" type="reset" id="reset">Clear filters</button>
-          </form>
+      <section class="topic-section">
+        <h2 class="govuk-heading-l" id="search">Search</h2>
+        <div class="govuk-grid-row">
+          <div class="govuk-grid-column-one-third">
+            <form id="filters" class="filters">
+              <div class="govuk-form-group"><label class="govuk-label govuk-label--s" for="q">Search by name or authority</label>
+                <input class="govuk-input" id="q" type="search"></div>
+              <div class="govuk-form-group"><fieldset class="govuk-fieldset"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Status</legend>
+                <div class="govuk-checkboxes govuk-checkboxes--small" id="f-status"></div></fieldset></div>
+              <div class="govuk-form-group"><fieldset class="govuk-fieldset"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Start date</legend>
+                <div class="govuk-checkboxes govuk-checkboxes--small" id="f-period"></div></fieldset></div>
+              <div class="govuk-form-group"><fieldset class="govuk-fieldset" role="group"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Entry date</legend>
+                <div class="govuk-date-input">
+                  <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-day">Day</label><input class="govuk-input govuk-date-input__input govuk-input--width-2" id="ed-day" inputmode="numeric"></div>
+                  <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-month">Month</label><input class="govuk-input govuk-date-input__input govuk-input--width-2" id="ed-month" inputmode="numeric"></div>
+                  <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-year">Year</label><input class="govuk-input govuk-date-input__input govuk-input--width-4" id="ed-year" inputmode="numeric"></div>
+                </div></fieldset></div>
+              <button class="govuk-button govuk-button--secondary" type="reset" id="reset">Clear filters</button>
+            </form>
+          </div>
+          <div class="govuk-grid-column-two-thirds">
+            <p class="govuk-body govuk-!-font-weight-bold" id="count" aria-live="polite"></p>
+            <div id="results"></div>
+            <nav id="pager" class="govuk-body" aria-label="Pagination"></nav>
+          </div>
         </div>
-        <div class="govuk-grid-column-two-thirds">
-          <p class="govuk-body govuk-!-font-weight-bold" id="count" aria-live="polite"></p>
-          <div id="results"></div>
-          <nav id="pager" class="govuk-body" aria-label="Pagination"></nav>
-        </div>
-      </div>
+      </section>
     </main>
   </div>
   <footer class="govuk-footer"><div class="govuk-width-container"><span class="govuk-footer__licence-description">

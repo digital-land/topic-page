@@ -254,7 +254,7 @@ function renderJourney() {
     .sort((a, b) => a - b);
   const median = durations.length ? durations[Math.floor(durations.length / 2)].toFixed(1) : null;
   return (
-    `<h3 class="govuk-heading-m govuk-!-margin-top-6">Progress through the stages</h3>` +
+    `<h3 class="govuk-heading-m">Progress through the stages</h3>` +
     `<p class="govuk-body">One line per plan, from the first date recorded at each stage. ${journeys.length} plans have dates for at least two stages.${
       median ? ` For the ${durations.length} adopted plans with early consultation or publication dates, the median time from first recorded stage to adoption is ${median} years.` : ""
     } Select a line to see the plan's timetable.</p>` +
