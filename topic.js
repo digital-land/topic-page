@@ -64,6 +64,9 @@ const fmt = (d) =>
   d
     ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : "";
+// start-date records adoption; adopted-date is deprecated but still used by some publishers
+const adoptedDate = (p) => p["start-date"] || p["adopted-date"];
+const isAdopted = (p) => p["local-plan-process"] === "adopted" || Boolean(adoptedDate(p));
 const statusOf = (p) => STATUS_LABEL[p["local-plan-process"]] ?? p["local-plan-process"];
 const slugFromPath = () => new URLSearchParams(location.search).get("topic");
 
@@ -94,7 +97,7 @@ async function init() {
 
 function renderStats() {
   const plans = data.plans;
-  const adopted = plans.filter((p) => p["local-plan-process"] === "adopted" || p["adopted-date"]).length;
+  const adopted = plans.filter(isAdopted).length;
   const authorities = new Set(plans.map((p) => p.boundary).filter(Boolean)).size;
   const stats = [
     [plans.length, `${topic.singular}s on the platform`],
@@ -108,7 +111,7 @@ function renderStats() {
 }
 
 function boundaryColour(plans) {
-  if (plans.some((p) => p["local-plan-process"] === "adopted" || p["adopted-date"])) return "#00703c";
+  if (plans.some(isAdopted)) return "#00703c";
   if (plans.some((p) => p["local-plan-process"])) return "#1d70b8";
   return "#505a5f";
 }
@@ -359,7 +362,7 @@ function renderResults() {
     .map((p) => {
       const hasEvents = data.events.some((e) => e.plan === p.reference);
       const f = (l, v) => (v ? `<div><dt>${l}</dt><dd>${esc(v)}</dd></div>` : "");
-      return `<div class="result"><h3 class="govuk-heading-s"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a></h3><dl>${f("Status", statusOf(p))}${f("Authority", p["authority-name"])}${f("Adopted", fmt(p["adopted-date"]))}${f("Period", [p["period-start-date"], p["period-end-date"]].map((d) => d.slice(0, 4)).filter(Boolean).join("–"))}${f("Entry date", fmt(p["entry-date"]))}</dl>${
+      return `<div class="result"><h3 class="govuk-heading-s"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a></h3><dl>${f("Status", statusOf(p))}${f("Authority", p["authority-name"])}${f("Adopted", fmt(adoptedDate(p)))}${f("Period", [p["period-start-date"], p["period-end-date"]].map((d) => d.slice(0, 4)).filter(Boolean).join("–"))}${f("Entry date", fmt(p["entry-date"]))}</dl>${
         hasEvents ? `<a class="govuk-link" href="#timeline-heading" data-timeline="${esc(p.reference)}">View timeline</a>` : ""
       }</div>`;
     })
