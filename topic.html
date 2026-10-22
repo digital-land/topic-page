@@ -1,110 +1,246 @@
 <!doctype html>
 <html lang="en" class="govuk-template">
-<head>
-  <meta charset="utf-8">
-  <title id="title">Topic - Planning Data</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.4.0/dist/govuk/govuk-frontend.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-  <link rel="stylesheet" href="topic.css">
-</head>
-<body class="govuk-template__body">
-  <a href="#main-content" class="govuk-skip-link">Skip to main content</a>
-  <header class="govuk-header">
-    <div class="govuk-header__container govuk-width-container">
-    </div>
-  </header>
-  <div class="govuk-width-container">
-    <div class="govuk-phase-banner"><p class="govuk-phase-banner__content">
-      <strong class="govuk-tag govuk-phase-banner__content__tag">Prototype</strong>
-      <span class="govuk-phase-banner__text">This is a prototype topic page using data from 
-      <a href="https://www.planning.data.gov.uk" class="govuk-link">
-	      planning.data.gov.uk
-      </a>
-      </span></p></div>
-    <nav class="govuk-breadcrumbs"><ol class="govuk-breadcrumbs__list">
-      <li class="govuk-breadcrumbs__list-item"><a class="govuk-breadcrumbs__link" href="https://www.planning.data.gov.uk">Home</a></li>
-      <li class="govuk-breadcrumbs__list-item">Topic</li>
-      <li class="govuk-breadcrumbs__list-item" id="crumb" aria-current="page"></li>
-    </ol></nav>
-    <main class="govuk-main-wrapper" id="main-content">
-      <div id="error" class="govuk-error-summary" hidden><h2 class="govuk-error-summary__title">There is a problem</h2>
-        <div class="govuk-error-summary__body" id="error-text"></div></div>
+  <head>
+    <meta charset="utf-8" />
+    <title id="title">Topic - Planning Data</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/govuk-frontend@5.4.0/dist/govuk/govuk-frontend.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+    />
+    <link rel="stylesheet" href="topic.css" />
+  </head>
+  <body class="govuk-template__body">
+    <a href="#main-content" class="govuk-skip-link">Skip to main content</a>
+    <header class="govuk-header">
+      <div class="govuk-header__container govuk-width-container"></div>
+    </header>
+    <div class="govuk-width-container">
+      <div class="govuk-phase-banner">
+        <p class="govuk-phase-banner__content">
+          <strong class="govuk-tag govuk-phase-banner__content__tag"
+            >Prototype</strong
+          >
+          <span class="govuk-phase-banner__text"
+            >This is a prototype topic page using data from
+            <a href="https://www.planning.data.gov.uk" class="govuk-link">
+              planning.data.gov.uk
+            </a>
+          </span>
+        </p>
+      </div>
+      <nav class="govuk-breadcrumbs">
+        <ol class="govuk-breadcrumbs__list">
+          <li class="govuk-breadcrumbs__list-item">
+            <a
+              class="govuk-breadcrumbs__link"
+              href="https://www.planning.data.gov.uk"
+              >Home</a
+            >
+          </li>
+          <li class="govuk-breadcrumbs__list-item">Topic</li>
+          <li
+            class="govuk-breadcrumbs__list-item"
+            id="crumb"
+            aria-current="page"
+          ></li>
+        </ol>
+      </nav>
+      <main class="govuk-main-wrapper" id="main-content">
+        <div id="error" class="govuk-error-summary" hidden>
+          <h2 class="govuk-error-summary__title">There is a problem</h2>
+          <div class="govuk-error-summary__body" id="error-text"></div>
+        </div>
 
-      <h1 class="govuk-heading-xl" id="heading"></h1>
-      <p class="govuk-body-l" id="summary"></p>
-      <div class="stats" id="stats"></div>
+        <h1 class="govuk-heading-xl" id="heading"></h1>
+        <p class="govuk-body-l" id="summary"></p>
+        <div class="stats" id="stats"></div>
 
-      <section class="topic-section">
-        <h2 class="govuk-heading-l">Map</h2>
-        <div class="map-wrap">
-          <div id="map" role="application" aria-label="Map of plan boundaries"></div>
-          <div class="map-panel" id="map-panel" tabindex="-1">
-            <div class="map-panel__heading"><h3 class="govuk-heading-s govuk-!-margin-bottom-0">Key</h3></div>
-            <button class="map-panel__close" type="button" aria-controls="map-panel"><span class="govuk-visually-hidden">Close key</span></button>
-            <div class="map-panel__content">
-              <div id="legend"></div>
-              <div id="map-selected"></div>
+        <section class="topic-section">
+          <h2 class="govuk-heading-l">Map</h2>
+          <div class="map-wrap">
+            <div
+              id="map"
+              role="application"
+              aria-label="Map of plan boundaries"
+            ></div>
+            <div class="map-panel" id="map-panel" tabindex="-1">
+              <div class="map-panel__heading">
+                <h3 class="govuk-heading-s govuk-!-margin-bottom-0">Key</h3>
+              </div>
+              <button
+                class="map-panel__close"
+                type="button"
+                aria-controls="map-panel"
+              >
+                <span class="govuk-visually-hidden">Close key</span>
+              </button>
+              <div class="map-panel__content">
+                <div id="legend"></div>
+                <div id="map-selected"></div>
+              </div>
+            </div>
+            <button
+              class="map-panel__open"
+              type="button"
+              aria-controls="map-panel"
+              hidden
+            >
+              <span class="govuk-visually-hidden">Open key</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="topic-section">
+          <h2 class="govuk-heading-l" id="timeline-heading">Timeline</h2>
+          <div id="timeline"></div>
+        </section>
+
+        <div class="topic-section govuk-grid-row">
+          <section class="govuk-grid-column-two-thirds">
+            <h2 class="govuk-heading-l">Data model</h2>
+            <p class="govuk-body">
+              All plan datasets share the
+              <a
+                class="govuk-link"
+                href="https://digital-land.github.io/specification/specification/plan/"
+                >plan specification</a
+              >.
+            </p>
+            <img
+              id="diagram"
+              class="diagram"
+              src="https://digital-land.github.io/specification/specification/plan/diagram.svg"
+              alt="Diagram of the plan data model showing the fields of a plan, its boundary and its timetable"
+            />
+          </section>
+          <section class="govuk-grid-column-one-third topic-aside">
+            <h2 class="govuk-heading-l">Guidance</h2>
+            <ul class="govuk-list govuk-list--bullet" id="links"></ul>
+          </section>
+        </div>
+
+        <section class="topic-section">
+          <h2 class="govuk-heading-l">Datasets</h2>
+          <div id="datasets"></div>
+        </section>
+
+        <section class="topic-section">
+          <h2 class="govuk-heading-l" id="search">Search</h2>
+          <div class="govuk-grid-row">
+            <div class="govuk-grid-column-one-third">
+              <form id="filters" class="filters">
+                <div class="govuk-form-group">
+                  <label class="govuk-label govuk-label--s" for="q"
+                    >Search by name or authority</label
+                  >
+                  <input class="govuk-input" id="q" type="search" />
+                </div>
+                <div class="govuk-form-group">
+                  <fieldset class="govuk-fieldset">
+                    <legend
+                      class="govuk-fieldset__legend govuk-fieldset__legend--s"
+                    >
+                      Status
+                    </legend>
+                    <div
+                      class="govuk-checkboxes govuk-checkboxes--small"
+                      id="f-status"
+                    ></div>
+                  </fieldset>
+                </div>
+                <div class="govuk-form-group">
+                  <fieldset class="govuk-fieldset">
+                    <legend
+                      class="govuk-fieldset__legend govuk-fieldset__legend--s"
+                    >
+                      Start date
+                    </legend>
+                    <div
+                      class="govuk-checkboxes govuk-checkboxes--small"
+                      id="f-period"
+                    ></div>
+                  </fieldset>
+                </div>
+                <div class="govuk-form-group">
+                  <fieldset class="govuk-fieldset" role="group">
+                    <legend
+                      class="govuk-fieldset__legend govuk-fieldset__legend--s"
+                    >
+                      Entry date
+                    </legend>
+                    <div class="govuk-date-input">
+                      <div class="govuk-date-input__item">
+                        <label
+                          class="govuk-label govuk-date-input__label"
+                          for="ed-day"
+                          >Day</label
+                        ><input
+                          class="govuk-input govuk-date-input__input govuk-input--width-2"
+                          id="ed-day"
+                          inputmode="numeric"
+                        />
+                      </div>
+                      <div class="govuk-date-input__item">
+                        <label
+                          class="govuk-label govuk-date-input__label"
+                          for="ed-month"
+                          >Month</label
+                        ><input
+                          class="govuk-input govuk-date-input__input govuk-input--width-2"
+                          id="ed-month"
+                          inputmode="numeric"
+                        />
+                      </div>
+                      <div class="govuk-date-input__item">
+                        <label
+                          class="govuk-label govuk-date-input__label"
+                          for="ed-year"
+                          >Year</label
+                        ><input
+                          class="govuk-input govuk-date-input__input govuk-input--width-4"
+                          id="ed-year"
+                          inputmode="numeric"
+                        />
+                      </div>
+                    </div>
+                  </fieldset>
+                </div>
+                <button
+                  class="govuk-button govuk-button--secondary"
+                  type="reset"
+                  id="reset"
+                >
+                  Clear filters
+                </button>
+              </form>
+            </div>
+            <div class="govuk-grid-column-two-thirds">
+              <p
+                class="govuk-body govuk-!-font-weight-bold"
+                id="count"
+                aria-live="polite"
+              ></p>
+              <div id="results"></div>
+              <nav id="pager" class="govuk-body" aria-label="Pagination"></nav>
             </div>
           </div>
-          <button class="map-panel__open" type="button" aria-controls="map-panel" hidden><span class="govuk-visually-hidden">Open key</span></button>
-        </div>
-      </section>
-
-      <section class="topic-section">
-        <h2 class="govuk-heading-l" id="timeline-heading">Timeline</h2>
-        <div id="timeline"></div>
-      </section>
-
-      <section class="topic-section">
-        <h2 class="govuk-heading-l">Data model</h2>
-        <p class="govuk-body">All plan datasets share the <a class="govuk-link" href="https://digital-land.github.io/specification/specification/plan/">plan specification</a>.</p>
-        <img id="diagram" class="diagram" src="https://digital-land.github.io/specification/specification/plan/diagram.svg"
-             alt="Diagram of the plan data model showing the fields of a plan, its boundary and its timetable">
-      </section>
-
-      <section class="topic-section">
-        <h2 class="govuk-heading-l">Specification and guidance</h2>
-        <ul class="govuk-list govuk-list--bullet" id="links"></ul>
-      </section>
-
-      <section class="topic-section">
-        <h2 class="govuk-heading-l">Datasets</h2>
-        <div id="datasets"></div>
-      </section>
-
-      <section class="topic-section">
-        <h2 class="govuk-heading-l" id="search">Search</h2>
-        <div class="govuk-grid-row">
-          <div class="govuk-grid-column-one-third">
-            <form id="filters" class="filters">
-              <div class="govuk-form-group"><label class="govuk-label govuk-label--s" for="q">Search by name or authority</label>
-                <input class="govuk-input" id="q" type="search"></div>
-              <div class="govuk-form-group"><fieldset class="govuk-fieldset"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Status</legend>
-                <div class="govuk-checkboxes govuk-checkboxes--small" id="f-status"></div></fieldset></div>
-              <div class="govuk-form-group"><fieldset class="govuk-fieldset"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Start date</legend>
-                <div class="govuk-checkboxes govuk-checkboxes--small" id="f-period"></div></fieldset></div>
-              <div class="govuk-form-group"><fieldset class="govuk-fieldset" role="group"><legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Entry date</legend>
-                <div class="govuk-date-input">
-                  <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-day">Day</label><input class="govuk-input govuk-date-input__input govuk-input--width-2" id="ed-day" inputmode="numeric"></div>
-                  <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-month">Month</label><input class="govuk-input govuk-date-input__input govuk-input--width-2" id="ed-month" inputmode="numeric"></div>
-                  <div class="govuk-date-input__item"><label class="govuk-label govuk-date-input__label" for="ed-year">Year</label><input class="govuk-input govuk-date-input__input govuk-input--width-4" id="ed-year" inputmode="numeric"></div>
-                </div></fieldset></div>
-              <button class="govuk-button govuk-button--secondary" type="reset" id="reset">Clear filters</button>
-            </form>
-          </div>
-          <div class="govuk-grid-column-two-thirds">
-            <p class="govuk-body govuk-!-font-weight-bold" id="count" aria-live="polite"></p>
-            <div id="results"></div>
-            <nav id="pager" class="govuk-body" aria-label="Pagination"></nav>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-  <footer class="govuk-footer"><div class="govuk-width-container"><span class="govuk-footer__licence-description">
-    Prototype. Data © Crown copyright and database right, licensed under the Open Government Licence v3.0.</span></div></footer>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-  <script src="topic.js"></script>
-</body>
+        </section>
+      </main>
+    </div>
+    <footer class="govuk-footer">
+      <div class="govuk-width-container">
+        <span class="govuk-footer__licence-description">
+          Prototype. Data © Crown copyright and database right, licensed under
+          the Open Government Licence v3.0.</span
+        >
+      </div>
+    </footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="topic.js"></script>
+  </body>
 </html>
