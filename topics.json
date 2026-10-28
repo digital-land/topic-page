@@ -8,8 +8,8 @@
     "boundaryField": "local-plan-boundary",
     "authorityField": "local-planning-authorities",
     "summary": "A local plan sets out the vision and framework for the future development of a local planning authority area. It is prepared by the local planning authority and, once adopted, is used to decide planning applications.",
-    "expected": 337,
-    "expectedNote": "local planning authorities",
+    "expected": null,
+    "expectedNote": null,
     "currentLpas": true,
     "guidance": "https://www.planning.data.gov.uk/guidance/specifications/local-plan",
     "related": [
