@@ -90,7 +90,7 @@ def current_lpas():
         if not o["end-date"]
         and (o["local-planning-authority"] or o["organisation"] in NO_AREA_LPAS)
     ]
-    return lpas, endpoints
+    return lpas, endpoints, organisations
 
 
 def timetable_providers(organisations):
@@ -121,6 +121,65 @@ def timetable_providers(organisations):
         members = organisations.get(s["organisation"], {}).get("organisations", "")
         providers.update(m for m in members.split(";") if m)
     return providers, len(sources)
+
+
+def lpa_submissions(pipelines, lpas, organisations):
+    """When each current LPA added an endpoint for each pipeline, and when it updated it.
+
+    A new resource (a new hash of the endpoint's data) means the LPA changed
+    the data. Endpoints of planning groups count for each member LPA.
+    """
+    path = CACHE / "lpa-submissions.json"
+    if not path.exists():
+        print("fetching LPA submissions", file=sys.stderr)
+        names = ",".join(f"'{p}'" for p in pipelines)
+        query = urllib.parse.urlencode(
+            {
+                "sql": "select source.organisation, sp.pipeline, endpoint.endpoint, "
+                "endpoint.start_date as endpoint_start, resource.start_date as resource_start "
+                "from source_pipeline sp join source on sp.source = source.source "
+                "join endpoint on source.endpoint = endpoint.endpoint "
+                "left join resource_endpoint re on re.endpoint = endpoint.endpoint "
+                "left join resource on resource.resource = re.resource "
+                f"where sp.pipeline in ({names}) "
+                'and source.organisation not like "government-organisation%"',
+                "_size": "max",
+                "_shape": "array",
+            }
+        )
+        urllib.request.urlretrieve(f"{DATASETTE}?{query}", path)
+    rows = json.loads(path.read_text())
+    current = {l["organisation"] for l in lpas}
+    # endpoint -> pipeline -> dates
+    by_org = {}
+    for r in rows:
+        owners = [r["organisation"]]
+        members = organisations.get(r["organisation"], {}).get("organisations", "")
+        owners += [m for m in members.split(";") if m]
+        for o in owners:
+            if o not in current:
+                continue
+            ep = (
+                by_org.setdefault(o, {})
+                .setdefault(r["pipeline"], {})
+                .setdefault(
+                    r["endpoint"], {"added": r["endpoint_start"], "resources": set()}
+                )
+            )
+            if r["resource_start"]:
+                ep["resources"].add(r["resource_start"])
+    out = []
+    for o, kinds in by_org.items():
+        item = {"organisation": o}
+        for pipeline, endpoints in kinds.items():
+            added = min(e["added"] for e in endpoints.values() if e["added"])
+            # the first resource of an endpoint is its first fetch, not an update
+            updates = sorted(
+                {d for e in endpoints.values() for d in sorted(e["resources"])[1:]}
+            )
+            item[pipeline] = {"added": added, "updates": updates}
+        out.append(item)
+    return sorted(out, key=lambda i: i["organisation"])
 
 
 def fetch(dataset):
@@ -252,7 +311,14 @@ def build(slug, topic):
             if event["plan"] in refs and (event["date"] or event["earliest"]):
                 events.append(event)
     issues = flag_reused_references(events)
-    lpas, endpoints = current_lpas() if topic.get("currentLpas") else ([], 0)
+    lpas, endpoints, organisations = (
+        current_lpas() if topic.get("currentLpas") else ([], 0, {})
+    )
+    submissions = (
+        lpa_submissions([topic["dataset"], topic["timetable"]], lpas, organisations)
+        if lpas
+        else []
+    )
     out = {
         "plans": rows,
         "issues": issues,
@@ -260,6 +326,7 @@ def build(slug, topic):
         "events": events,
         "current-lpas": lpas,
         "timetable-endpoints": endpoints,
+        "lpa-submissions": submissions,
         "counts": {
             "plans": len(rows),
             "boundaries": len(boundaries),

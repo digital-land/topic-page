@@ -55,3 +55,5 @@ body, .govuk-template__body, [class*="govuk-"], input, button, .chart text {
 .swatch--predicted { background: #6f777b !important; opacity: 0.6; }
 .plan-timeline .predicted { color: #505a5f; font-style: italic; }
 .plan-timeline .suspect { color: #d4351c; text-decoration: line-through; }
+.swatch--ring { background: #fff !important; border: 2px solid #505a5f; box-sizing: border-box; }
+.lane-label { font-size: 12px; fill: #1d70b8; text-decoration: underline; }

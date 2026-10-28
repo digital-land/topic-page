@@ -337,6 +337,7 @@ function renderTimeline() {
     `<div class="chart-wrap">${svg}</div>` +
     renderJourney() +
     renderTimetableProviders() +
+    renderSubmissions() +
     renderIssues() +
     renderMissingBoundaries() +
     `<div id="plan-timeline" aria-live="polite"></div>` +
@@ -482,6 +483,72 @@ function renderTimetableProviders() {
     `</div>` +
     list(`List the ${ownNoEvents.length} LPAs that publish a timetable but have no events here`, ownNoEvents) +
     list(`List the ${none.length} LPAs with no timetable data`, none)
+  );
+}
+
+function renderSubmissions() {
+  const subs = data["lpa-submissions"];
+  if (!subs?.length) return "";
+  const kinds = [
+    [topic.dataset, "Plan data", COLOUR.progress],
+    [topic.timetable, "Timetable data", COLOUR.submitted],
+  ];
+  const lpas = Object.fromEntries(data["current-lpas"].map((l) => [l.organisation, l]));
+  const day = (d) => new Date(d).getTime();
+  const dates = subs.flatMap((s) => kinds.flatMap(([k]) => (s[k] ? [s[k].added, ...s[k].updates] : [])));
+  const t0 = Math.min(...dates.map(day));
+  const t1 = day(TODAY);
+  const months = [];
+  for (let d = new Date(t0), m = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1); m <= t1; d = new Date(m), m = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)) months.push(m);
+  const monthLabel = (t) => new Date(t).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
+  const key = (k) => subs.filter((s) => s[k]);
+  const updates = (k) => subs.reduce((n, s) => n + (s[k]?.updates.length ?? 0), 0);
+
+  // cumulative number of LPAs that have added an endpoint
+  const [w, h, ml, mr, mt, mb] = [960, 280, 40, 20, 10, 30];
+  const max = Math.ceil(Math.max(...kinds.map(([k]) => key(k).length)) / 20) * 20;
+  const sx = (t) => ml + ((t - t0) / (t1 - t0)) * (w - ml - mr);
+  const sy = (v) => h - mb - (v / max) * (h - mb - mt);
+  let svg = `<svg class="chart" viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;min-width:640px" role="img" aria-label="Step chart of the number of LPAs that have provided plan data and timetable data over time">`;
+  for (let v = 0; v <= max; v += 20) svg += `<line class="grid" x1="${ml}" x2="${w - mr}" y1="${sy(v)}" y2="${sy(v)}"/><text x="${ml - 6}" y="${sy(v) + 4}" text-anchor="end">${v}</text>`;
+  months.forEach((m) => (svg += `<text x="${sx(m)}" y="${h - 10}" text-anchor="middle">${monthLabel(m)}</text>`));
+  kinds.forEach(([k, label, colour]) => {
+    const added = key(k).map((s) => day(s[k].added)).sort((a, b) => a - b);
+    let pts = `${sx(t0)},${sy(0)}`;
+    added.forEach((t, i) => (pts += ` ${sx(t)},${sy(i)} ${sx(t)},${sy(i + 1)}`));
+    pts += ` ${sx(t1)},${sy(added.length)}`;
+    svg += `<polyline points="${pts}" fill="none" stroke="${colour}" stroke-width="3"><title>${label}: ${added.length} LPAs</title></polyline>`;
+  });
+  svg += `<line class="axis" x1="${ml}" x2="${w - mr}" y1="${h - mb}" y2="${h - mb}"/></svg>`;
+
+  // one row per LPA: a filled dot when the endpoint was added, a ring for each update
+  const rows = subs
+    .map((s) => ({ s, name: lpas[s.organisation]?.name ?? s.organisation, first: Math.min(...kinds.filter(([k]) => s[k]).map(([k]) => day(s[k].added))) }))
+    .sort((a, b) => a.first - b.first || a.name.localeCompare(b.name));
+  const [rw, rh, lw] = [960, 20, 250];
+  const rx = (t) => lw + ((t - t0) / (t1 - t0)) * (rw - lw - 20);
+  let lane = `<svg class="chart" viewBox="0 0 ${rw} ${rows.length * rh + 30}" style="width:100%;height:auto;min-width:640px" role="img" aria-label="Timeline of when each LPA provided and updated plan data and timetable data">`;
+  months.forEach((m) => (lane += `<line class="grid" x1="${rx(m)}" x2="${rx(m)}" y1="0" y2="${rows.length * rh}"/><text x="${rx(m)}" y="${rows.length * rh + 18}" text-anchor="middle">${monthLabel(m)}</text>`));
+  rows.forEach(({ s, name }, i) => {
+    const y = i * rh + rh / 2;
+    lane += `<a href="https://provide.planning.data.gov.uk/organisations/${esc(s.organisation)}"><text x="${lw - 10}" y="${y + 4}" text-anchor="end" class="lane-label">${esc(name)}</text></a>`;
+    kinds.forEach(([k, label, colour], n) => {
+      if (!s[k]) return;
+      const cy = y + (n ? 4 : -4);
+      lane += `<circle cx="${rx(day(s[k].added))}" cy="${cy}" r="3.5" fill="${colour}"><title>${esc(name)}: ${label.toLowerCase()} added ${fmt(s[k].added)}</title></circle>`;
+      s[k].updates.forEach((u) => (lane += `<circle cx="${rx(day(u))}" cy="${cy}" r="3" fill="#fff" stroke="${colour}" stroke-width="1.5"><title>${esc(name)}: ${label.toLowerCase()} updated ${fmt(u)}</title></circle>`));
+    });
+  });
+  lane += `</svg>`;
+  const keyHtml =
+    kinds.map(([, label, colour]) => `<span class="legend-item"><span class="swatch" style="background:${colour}"></span>${label}</span>`).join("") +
+    `<span class="legend-item"><span class="swatch swatch--ring"></span>Updated</span>`;
+  return (
+    `<h3 class="govuk-heading-m" id="submissions-heading">When LPAs provided data</h3>` +
+    `<p class="govuk-body">Number of current LPAs that have added an endpoint, from ${monthLabel(t0)}. ${key(topic.dataset).length} have provided plan data and ${key(topic.timetable).length} timetable data. A new copy of the data at an endpoint is counted as an update: ${updates(topic.dataset)} for plan data and ${updates(topic.timetable)} for timetable data.</p>` +
+    `<div class="chart-key">${kinds.map(([, label, colour]) => `<span class="legend-item"><span class="swatch" style="background:${colour}"></span>${label}</span>`).join("")}</div>` +
+    `<div class="chart-wrap">${svg}</div>` +
+    `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">Timeline for each of the ${rows.length} LPAs</span></summary><div class="govuk-details__text"><div class="chart-key">${keyHtml}</div><div class="chart-wrap">${lane}</div></div></details>`
   );
 }
 
