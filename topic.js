@@ -168,8 +168,9 @@ function boundaryState(plans) {
   return PLAN_STATES.find((s) => states.has(s)) ?? "unknown";
 }
 
+// new and existing plans being developed share a colour for now
 function boundaryColour(plans) {
-  return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.noAdopted, unknown: COLOUR.notStated }[boundaryState(plans)];
+  return { new: COLOUR.progress, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.noAdopted, unknown: COLOUR.notStated }[boundaryState(plans)];
 }
 
 function planLine(p) {
@@ -299,10 +300,10 @@ function renderMap() {
       const s = boundaryState(planByRef[f.properties.reference] ?? []);
       counts[s] = (counts[s] ?? 0) + 1;
     });
+  counts.developing = (counts.new ?? 0) + (counts.existing ?? 0);
   $("legend").innerHTML =
     [
-      ["new", COLOUR.newPlan, `New ${topic.singular} being developed (started after March 2026)`],
-      ["existing", COLOUR.progress, `Existing ${topic.singular} being developed (started before March 2026)`],
+      ["developing", COLOUR.progress, `${topic.singular[0].toUpperCase()}${topic.singular.slice(1)} being developed`],
       ["adopted", COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
       ["noAdopted", COLOUR.noAdopted, `No adopted ${topic.singular} is in place`],
       ["unknown", null, "Unknown status"],
