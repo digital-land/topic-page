@@ -110,20 +110,23 @@ function renderStats() {
   const plans = data.plans;
   const adopted = plans.filter(isAdopted).length;
   const features = data.boundaries.features;
-  const former = new Set(features.filter((f) => f.properties["end-date"] && f.properties["end-date"] <= TODAY).map((f) => f.properties.reference));
+  // only areas in the LPA dataset count as LPAs, not joint planning groups or the Broads Authority
+  // (minerals and waste boundaries are mostly county councils, which aren't in that dataset)
+  const lpaAreas = topic.dataset === "local-plan" ? features.filter((f) => f.properties.lpa) : features;
+  const former = new Set(lpaAreas.filter((f) => f.properties["end-date"] && f.properties["end-date"] <= TODAY).map((f) => f.properties.reference));
   const onMap = plans.filter((p) => features.some((f) => f.properties.reference === p.boundary));
   const used = new Set(onMap.map((p) => p.boundary));
   const count = (set) => [...set].filter((r) => used.has(r)).length;
-  const all = new Set(features.map((f) => f.properties.reference));
+  const all = new Set(lpaAreas.map((f) => f.properties.reference));
   const current = new Set([...all].filter((r) => !former.has(r)));
   const plural = `${topic.singular}s`;
   const stats = [
     [plans.length, `${plural} on the platform`],
     [adopted, "adopted"],
     [onMap.length, `${plural} with a boundary, ${plans.length - onMap.length} without`],
-    [current.size, `current local planning authorities (LPAs) with a boundary, ${count(current)} with a ${topic.singular}`],
+    [current.size, `current ${topic.dataset === "local-plan" ? "local planning authorities (LPAs)" : "authorities"} with a boundary, ${count(current)} with a ${topic.singular}`],
   ];
-  if (former.size) stats.push([former.size, `historical LPAs with a boundary, ${count(former)} with a ${topic.singular}`]);
+  if (former.size) stats.push([former.size, `historical ${topic.dataset === "local-plan" ? "LPAs" : "authorities"} with a boundary, ${count(former)} with a ${topic.singular}`]);
   if (topic.expected) stats.push([topic.expected, topic.expectedNote + " in England"]);
   $("stats").innerHTML = stats
     .map(([n, l]) => `<div class="stat"><strong>${n.toLocaleString("en-GB")}</strong><span>${esc(l)}</span></div>`)

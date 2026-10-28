@@ -154,6 +154,8 @@ def build(slug, topic):
                         "name": b["name"],
                         "entity": b["entity"],
                         "end-date": b.get("end-date") or ended.get(b["reference"], ""),
+                        # single LPA areas, as opposed to joint planning groups
+                        "lpa": b["reference"] in ended,
                     },
                     "geometry": simplify(b["geometry"]),
                 }
