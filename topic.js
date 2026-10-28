@@ -314,13 +314,16 @@ function renderTimeline() {
     `<p class="govuk-body-s">Select a plan on the map or in the search results to see its own timetable.</p>`;
 }
 
+const TODAY = new Date().toISOString().slice(0, 10);
+const isPredicted = (e) => Boolean(e.earliest) || e.event.startsWith("estimated-") || e.date > TODAY;
+
 function renderJourney() {
   const byPlan = {};
   data.events.forEach((e) => {
     const stage = EVENT_STAGE[e.event];
     if (stage === undefined || !e.date) return;
     const stages = (byPlan[e.plan] ??= {});
-    if (!stages[stage] || e.date < stages[stage]) stages[stage] = e.date;
+    if (!stages[stage] || e.date < stages[stage].date) stages[stage] = { date: e.date, predicted: isPredicted(e) };
   });
   const withdrawn = new Set(data.events.filter((e) => e.event === "plan-withdrawn").map((e) => e.plan));
   const names = Object.fromEntries(data.plans.map((p) => [p.reference, p.name]));
@@ -328,7 +331,7 @@ function renderJourney() {
     .map(([ref, st]) => ({
       ref,
       points: Object.entries(st)
-        .map(([stage, date]) => ({ stage: +stage, t: new Date(date).getTime(), date }))
+        .map(([stage, v]) => ({ stage: +stage, t: new Date(v.date).getTime(), date: v.date, predicted: v.predicted }))
         .filter((p) => p.t >= Date.UTC(2004, 0, 1))
         .sort((a, b) => a.stage - b.stage),
       outcome: withdrawn.has(ref) ? "withdrawn" : st[4] ? "adopted" : "progress",
@@ -351,10 +354,17 @@ function renderJourney() {
   journeys
     .sort((a, b) => order[a.outcome] - order[b.outcome])
     .forEach((j) => {
-      const pts = j.points.map((p) => `${sx(p.t).toFixed(1)},${sy(p.stage).toFixed(1)}`).join(" ");
+      const xy = (p) => `${sx(p.t).toFixed(1)},${sy(p.stage).toFixed(1)}`;
+      const actual = j.points.filter((p) => !p.predicted);
+      const pts = actual.map(xy).join(" ");
+      // dashed segments lead to predicted (future) stages
+      const future = j.points
+        .map((p, i) => (p.predicted && i ? `${xy(j.points[i - 1])} ${xy(p)}` : ""))
+        .filter(Boolean);
       const [a, b] = [j.points[0], j.points.at(-1)];
       const dur = ((days(a.t, b.t) / 365.25)).toFixed(1);
       svg += `<polyline class="journey" data-timeline="${esc(j.ref)}" points="${pts}" fill="none" stroke="${colour[j.outcome]}"><title>${esc(names[j.ref] ?? j.ref)}: ${esc(STAGES[a.stage])} to ${esc(STAGES[b.stage])} in ${dur} years (${label[j.outcome].toLowerCase()})</title></polyline>`;
+      future.forEach((f) => (svg += `<polyline class="journey journey--predicted" data-timeline="${esc(j.ref)}" points="${f}" fill="none"><title>${esc(names[j.ref] ?? j.ref)}: predicted dates</title></polyline>`));
     });
   svg += `</svg>`;
   const durations = journeys
@@ -367,7 +377,7 @@ function renderJourney() {
     `<p class="govuk-body">One line per plan, from the first date recorded at each stage. ${journeys.length} plans have dates for at least two stages.${
       median ? ` For the ${durations.length} adopted plans with early consultation or publication dates, the median time from first recorded stage to adoption is ${median} years.` : ""
     } Select a line to see the plan's timetable.</p>` +
-    `<div class="chart-key">${Object.keys(colour).map((k) => `<span class="legend-item"><span class="swatch" style="background:${colour[k]}"></span>${label[k]}</span>`).join("")}</div>` +
+    `<div class="chart-key">${Object.keys(colour).map((k) => `<span class="legend-item"><span class="swatch" style="background:${colour[k]}"></span>${label[k]}</span>`).join("")}<span class="legend-item"><span class="swatch swatch--predicted"></span>Predicted</span></div>` +
     `<div class="chart-wrap">${svg}</div>`
   );
 }
@@ -385,7 +395,8 @@ function showPlanTimeline(ref) {
       .map((e) => {
         const c = GROUPS[EVENT_GROUP[e.event]]?.colour ?? "#b1b4b6";
         const date = e.date ? fmt(e.date) : e.earliest ? `Predicted ${fmt(e.earliest)}${e.latest ? " to " + fmt(e.latest) : ""}` : "No date";
-        return `<li><span class="swatch" style="background:${c}"></span><strong>${esc(date)}</strong> ${esc(e.event.replaceAll("-", " "))}</li>`;
+        const pred = isPredicted(e);
+        return `<li${pred ? ' class="predicted"' : ""}><span class="swatch${pred ? " swatch--predicted" : ""}" style="background:${c}"></span><strong>${esc(pred && e.date ? "Predicted " + date : date)}</strong> ${esc(e.event.replaceAll("-", " "))}</li>`;
       })
       .join("") +
     `</ol></div>`;
