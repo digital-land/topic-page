@@ -336,6 +336,7 @@ function renderTimeline() {
     `<div class="chart-key">${groups.map((g) => `<span class="legend-item"><span class="swatch" style="background:${GROUPS[g].colour}"></span>${GROUPS[g].label}</span>`).join("")}</div>` +
     `<div class="chart-wrap">${svg}</div>` +
     renderJourney() +
+    renderTimetableProviders() +
     renderIssues() +
     renderMissingBoundaries() +
     `<div id="plan-timeline" aria-live="polite"></div>` +
@@ -448,6 +449,39 @@ function renderMissingBoundaries() {
     lpaTable +
     `<details class="govuk-details" id="missing-boundaries"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${missing.length} plans</span></summary><div class="govuk-details__text">` +
     `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row">${th("Plan")}${th("LPAs")}${th("Status")}${th("Problem")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`
+  );
+}
+
+function renderTimetableProviders() {
+  const lpas = data["current-lpas"];
+  if (!lpas?.length) return "";
+  const planRefs = new Set(data.events.map((e) => e.plan));
+  const covered = new Set();
+  data.plans.filter((p) => planRefs.has(p.reference)).forEach((p) => lpasOf(p).forEach((r) => covered.add(r)));
+  const pct = (n) => `${n} (${Math.round((n / lpas.length) * 100)}%)`;
+  const hasEvents = (l) => covered.has(l.reference);
+  const own = lpas.filter((l) => l["timetable-endpoint"]);
+  const withEvents = lpas.filter(hasEvents);
+  const ownNoEvents = own.filter((l) => !hasEvents(l));
+  const none = lpas.filter((l) => !hasEvents(l) && !l["timetable-endpoint"]);
+  const stat = (n, l) => `<div class="stat"><strong>${n}</strong><span>${l}</span></div>`;
+  const list = (title, items) =>
+    items.length
+      ? `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">${title}</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${items
+          .map((l) => `<li>${esc(l.name)}</li>`)
+          .join("")}</ul></div></details>`
+      : "";
+  return (
+    `<h3 class="govuk-heading-m" id="providers-heading">LPAs providing timetable data</h3>` +
+    `<p class="govuk-body">Of ${lpas.length} current LPAs, ${pct(own.length)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${pct(withEvents.length)} have timetable events for at least one of their plans, including events that did not come from an endpoint of their own.</p>` +
+    `<div class="stats">` +
+    stat(pct(own.length), "of current LPAs publish their own timetable") +
+    stat(pct(withEvents.length), "of current LPAs have timetable events") +
+    stat(ownNoEvents.length, "publish a timetable but have no events here") +
+    stat(none.length, "have no timetable data") +
+    `</div>` +
+    list(`List the ${ownNoEvents.length} LPAs that publish a timetable but have no events here`, ownNoEvents) +
+    list(`List the ${none.length} LPAs with no timetable data`, none)
   );
 }
 

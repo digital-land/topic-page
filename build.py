@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import sys
+import urllib.parse
 import urllib.request
 from datetime import date
 from pathlib import Path
@@ -13,6 +14,7 @@ from shapely.geometry import mapping
 
 FILES = "https://files.planning.data.gov.uk/dataset/"
 ORGANISATIONS = "https://files.planning.data.gov.uk/organisation-collection/dataset/organisation.csv"
+DATASETTE = "https://datasette.planning.data.gov.uk/digital-land.json"
 CACHE = Path("cache")
 DATA = Path("data")
 csv.field_size_limit(10**9)
@@ -66,23 +68,58 @@ def current_lpas():
 
     The organisation dataset holds the LPA area reference in
     local-planning-authority, which is blank for South Tees Development
-    Corporation, still a current LPA.
+    Corporation, still a current LPA. Each is flagged with whether it, or a
+    planning group it belongs to, has a plan-timetable endpoint.
     """
     path = CACHE / "organisation.csv"
     if not path.exists():
         print("fetching organisation", file=sys.stderr)
         urllib.request.urlretrieve(ORGANISATIONS, path)
     with open(path, newline="", encoding="utf-8") as f:
-        return [
+        organisations = {o["organisation"]: o for o in csv.DictReader(f)}
+    providers, endpoints = timetable_providers(organisations)
+    lpas = [
+        {
+            "organisation": o["organisation"],
+            "name": o["name"],
+            "reference": o["local-planning-authority"],
+            "timetable-endpoint": o["organisation"] in providers,
+        }
+        for o in organisations.values()
+        if not o["end-date"]
+        and (o["local-planning-authority"] or o["organisation"] in NO_AREA_LPAS)
+    ]
+    return lpas, endpoints
+
+
+def timetable_providers(organisations):
+    """Organisations (and members of planning groups) with a plan-timetable endpoint.
+
+    Uses the same query as the datasette link on the page, which leaves out
+    government organisations. Returns the organisations and the endpoint count.
+    """
+    path = CACHE / "plan-timetable-sources.json"
+    if not path.exists():
+        print("fetching plan-timetable sources", file=sys.stderr)
+        query = urllib.parse.urlencode(
             {
-                "organisation": o["organisation"],
-                "name": o["name"],
-                "reference": o["local-planning-authority"],
+                "sql": "select source.organisation, endpoint_url from source_pipeline, source, endpoint "
+                'where "pipeline" = :p0 and source_pipeline.source = source.source '
+                "and source.endpoint = endpoint.endpoint "
+                'and organisation not like "government-organisation%"',
+                "p0": "plan-timetable",
+                "_size": "max",
+                "_shape": "array",
             }
-            for o in csv.DictReader(f)
-            if not o["end-date"]
-            and (o["local-planning-authority"] or o["organisation"] in NO_AREA_LPAS)
-        ]
+        )
+        urllib.request.urlretrieve(f"{DATASETTE}?{query}", path)
+    sources = json.loads(path.read_text())
+    providers = set()
+    for s in sources:
+        providers.add(s["organisation"])
+        members = organisations.get(s["organisation"], {}).get("organisations", "")
+        providers.update(m for m in members.split(";") if m)
+    return providers, len(sources)
 
 
 def fetch(dataset):
@@ -214,12 +251,14 @@ def build(slug, topic):
             if event["plan"] in refs and (event["date"] or event["earliest"]):
                 events.append(event)
     issues = flag_reused_references(events)
+    lpas, endpoints = current_lpas() if topic.get("currentLpas") else ([], 0)
     out = {
         "plans": rows,
         "issues": issues,
         "boundaries": {"type": "FeatureCollection", "features": features},
         "events": events,
-        "current-lpas": current_lpas() if topic.get("currentLpas") else [],
+        "current-lpas": lpas,
+        "timetable-endpoints": endpoints,
         "counts": {
             "plans": len(rows),
             "boundaries": len(boundaries),
