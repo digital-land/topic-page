@@ -8,6 +8,7 @@ const COLOUR = {
   sound: "#4c2c92", // purple
 };
 const GROUPS = {
+  preparing: { label: "Preparation and timetable", colour: "#5694ca" },
   draft: { label: "Draft and consultation", colour: COLOUR.progress },
   submitted: { label: "Submitted for examination", colour: COLOUR.submitted },
   sound: { label: "Found sound or inspector report", colour: COLOUR.sound },
@@ -15,6 +16,23 @@ const GROUPS = {
   withdrawn: { label: "Withdrawn", colour: COLOUR.withdrawn },
 };
 const EVENT_GROUP = {
+  "timetable-published": "preparing",
+  "publish-notice-intention-commence": "preparing",
+  "publish-notice-of-intention-to-commence-local-plan-preparation": "preparing",
+  "Notice of Intention to Commence Plan": "preparing",
+  "gateway-1-self-assessment": "preparing",
+  "gateway-1:-self-assessment-of-readiness": "preparing",
+  "call-for-sites-start": "preparing",
+  "SEA-scoping-report-consultation-start": "preparing",
+  "plan-content-evidence-consultation-start": "draft",
+  "consultation:-proposed-local-plan-content-and-evidence-start": "draft",
+  "consultation:-proposed-local-plan-start": "draft",
+  "main-modification-consultation-start": "draft",
+  "additional-consultation-start": "draft",
+  "planning-inspectorate-examination-start": "submitted",
+  "submission-to-examination": "submitted",
+  "planning-inspectorate-examination-end": "sound",
+  adoption: "adopted",
   "reg-18-draft-local-plan-published": "draft",
   "reg-18-consultation-start": "draft",
   "reg-18-public-consultation-start": "draft",
