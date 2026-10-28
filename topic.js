@@ -109,12 +109,21 @@ async function init() {
 function renderStats() {
   const plans = data.plans;
   const adopted = plans.filter(isAdopted).length;
-  const authorities = new Set(plans.map((p) => p.boundary).filter(Boolean)).size;
+  const features = data.boundaries.features;
+  const former = new Set(features.filter((f) => f.properties["end-date"] && f.properties["end-date"] <= TODAY).map((f) => f.properties.reference));
+  const onMap = plans.filter((p) => features.some((f) => f.properties.reference === p.boundary));
+  const used = new Set(onMap.map((p) => p.boundary));
+  const count = (set) => [...set].filter((r) => used.has(r)).length;
+  const all = new Set(features.map((f) => f.properties.reference));
+  const current = new Set([...all].filter((r) => !former.has(r)));
+  const plural = `${topic.singular}s`;
   const stats = [
-    [plans.length, `${topic.singular}s on the platform`],
+    [plans.length, `${plural} on the platform`],
     [adopted, "adopted"],
-    [data.counts.boundaries, "with a boundary"],
+    [onMap.length, `${plural} with a boundary, ${plans.length - onMap.length} without`],
+    [current.size, `current local planning authorities (LPAs) with a boundary, ${count(current)} with a ${topic.singular}`],
   ];
+  if (former.size) stats.push([former.size, `historical LPAs with a boundary, ${count(former)} with a ${topic.singular}`]);
   if (topic.expected) stats.push([topic.expected, topic.expectedNote + " in England"]);
   $("stats").innerHTML = stats
     .map(([n, l]) => `<div class="stat"><strong>${n.toLocaleString("en-GB")}</strong><span>${esc(l)}</span></div>`)
