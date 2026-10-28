@@ -5,6 +5,8 @@ const COLOUR = {
   withdrawn: "#d4351c", // red
   submitted: "#f47738", // orange
   notStated: "#505a5f", // dark grey
+  newPlan: "#d53880", // pink
+  noAdopted: "#ffdd00", // yellow
   sound: "#4c2c92", // purple
 };
 const GROUPS = {
@@ -149,10 +151,37 @@ function renderStats() {
     .join("");
 }
 
+// the new plan-making system: plans started from April 2026 are "new"
+const NEW_PLANS_FROM = "2026-04-01";
+
+// the date of a plan's first timetable event, if it has any
+let planStarts;
+function planStart(p) {
+  planStarts ??= data.events.reduce((m, e) => {
+    if (e.date && !e.suspect && (!m[e.plan] || e.date < m[e.plan])) m[e.plan] = e.date;
+    return m;
+  }, {});
+  return planStarts[p.reference];
+}
+
+// what a plan says about the authority, most significant first
+const PLAN_STATES = ["new", "existing", "adopted", "noAdopted", "unknown"];
+function planState(p) {
+  const process = p["local-plan-process"];
+  if (isAdopted(p)) return "adopted";
+  if (process === "withdrawn") return "noAdopted";
+  if (!process) return "unknown";
+  // without timetable dates the plan is taken to have started before the new system
+  return (planStart(p) ?? "") >= NEW_PLANS_FROM ? "new" : "existing";
+}
+
+function boundaryState(plans) {
+  const states = new Set(plans.map(planState));
+  return PLAN_STATES.find((s) => states.has(s)) ?? "unknown";
+}
+
 function boundaryColour(plans) {
-  if (plans.some(isAdopted)) return COLOUR.adopted;
-  if (plans.some((p) => p["local-plan-process"])) return COLOUR.progress;
-  return COLOUR.notStated;
+  return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.noAdopted, unknown: COLOUR.notStated }[boundaryState(plans)];
 }
 
 function planLine(p) {
@@ -228,7 +257,8 @@ function renderMap() {
     style: (f) => ({
       color: "#0b0c0c",
       weight: 1,
-      fillOpacity: 1,
+      // authorities with an unknown status are see-through, but still selectable
+      fillOpacity: boundaryState(planByRef[f.properties.reference] ?? []) === "unknown" ? 0 : 1,
       fillColor: boundaryColour(planByRef[f.properties.reference] ?? []),
     }),
     onEachFeature: (f, l) => l.bindTooltip(esc(boundaryName(f))),
@@ -274,8 +304,14 @@ function renderMap() {
   map.setMinZoom(map.getZoom());
   const noBoundary = plansWithoutBoundary().length;
   $("legend").innerHTML =
-    [[COLOUR.adopted, "Has an adopted plan"], [COLOUR.progress, "Plan in progress"], [COLOUR.notStated, "Status not stated"]]
-      .map(([c, l]) => `<div class="legend-item"><span class="swatch" style="background:${c}"></span>${l}</div>`)
+    [
+      [COLOUR.newPlan, `New ${topic.singular} being developed (started after March 2026)`],
+      [COLOUR.progress, `Existing ${topic.singular} being developed (started before March 2026)`],
+      [COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
+      [COLOUR.noAdopted, `No adopted ${topic.singular} is in place`],
+      [null, "Unknown status"],
+    ]
+      .map(([c, l]) => `<div class="legend-item"><span class="swatch"${c ? ` style="background:${c}"` : ""}></span>${l}</div>`)
       .join("") +
     `<p class="govuk-body-s">${data.events.length ? `<a class="govuk-link" href="#boundaries-heading" data-open="missing-boundaries">${noBoundary}</a>` : noBoundary} of ${data.plans.length} plans have no boundary on the map. Select an area to see its plans.</p>`;
   document.querySelector(".map-panel__close").addEventListener("click", () => toggleMapPanel(false));
