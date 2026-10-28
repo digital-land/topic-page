@@ -270,6 +270,8 @@ function renderMap() {
   const keyWidth = $("map-panel").offsetWidth + 30;
   const padRight = map.getSize().x - keyWidth >= 300 ? keyWidth : 0;
   if (layer.getBounds().isValid()) map.fitBounds(layer.getBounds(), { paddingBottomRight: [padRight, 0] });
+  // the initial view is as far out as the map goes
+  map.setMinZoom(map.getZoom());
   const noBoundary = plansWithoutBoundary().length;
   $("legend").innerHTML =
     [[COLOUR.adopted, "Has an adopted plan"], [COLOUR.progress, "Plan in progress"], [COLOUR.notStated, "Status not stated"]]
