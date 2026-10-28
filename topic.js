@@ -247,7 +247,7 @@ function renderMap() {
     [[COLOUR.adopted, "Has an adopted plan"], [COLOUR.progress, "Plan in progress"], [COLOUR.notStated, "Status not stated"]]
       .map(([c, l]) => `<div class="legend-item"><span class="swatch" style="background:${c}"></span>${l}</div>`)
       .join("") +
-    `<p class="govuk-body-s">${noBoundary} of ${data.plans.length} plans have no boundary on the map. Select an area to see its plans.</p>`;
+    `<p class="govuk-body-s">${data.events.length ? `<a class="govuk-link" href="#boundaries-heading" data-open="missing-boundaries">${noBoundary}</a>` : noBoundary} of ${data.plans.length} plans have no boundary on the map. Select an area to see its plans.</p>`;
   document.querySelector(".map-panel__close").addEventListener("click", () => toggleMapPanel(false));
   document.querySelector(".map-panel__open").addEventListener("click", () => toggleMapPanel(true));
 }
@@ -388,6 +388,9 @@ function plansWithoutBoundary() {
   return data.plans.filter((p) => !refs.has(p.boundary));
 }
 
+const lpas = (p) => (p.authorities || p.boundary || "").split(/[;-]/).filter(Boolean);
+const lpaProblem = (p) => ({ 0: "No LPA recorded", 1: "Unknown LPA" })[lpas(p).length] ?? "Unknown group";
+
 function renderMissingBoundaries() {
   const missing = plansWithoutBoundary();
   if (!missing.length) return "";
@@ -395,15 +398,15 @@ function renderMissingBoundaries() {
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (p) =>
-        `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a></td><td class="govuk-table__cell">${esc(p["authority-name"] || p.authorities || "Not stated")}</td><td class="govuk-table__cell">${esc(statusOf(p) || "Not stated")}</td><td class="govuk-table__cell">${p.boundary ? `${esc(p.boundary)} not in boundary data` : "No boundary"}</td></tr>`
+        `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a></td><td class="govuk-table__cell">${esc(lpas(p).join(", ") || "Not stated")}</td><td class="govuk-table__cell">${esc(statusOf(p) || "Not stated")}</td><td class="govuk-table__cell">${lpaProblem(p)}</td></tr>`
     )
     .join("");
   const th = (t) => `<th scope="col" class="govuk-table__header">${t}</th>`;
   return (
     `<h3 class="govuk-heading-m" id="boundaries-heading">Plans with missing boundaries</h3>` +
     `<p class="govuk-body">${missing.length} of ${data.plans.length} plans can't be shown on the map, because they have no boundary or the boundary isn't in the boundary data.</p>` +
-    `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${missing.length} plans</span></summary><div class="govuk-details__text">` +
-    `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row">${th("Plan")}${th("Authority")}${th("Status")}${th("Problem")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`
+    `<details class="govuk-details" id="missing-boundaries"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${missing.length} plans</span></summary><div class="govuk-details__text">` +
+    `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row">${th("Plan")}${th("LPAs")}${th("Status")}${th("Problem")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`
   );
 }
 
@@ -445,6 +448,8 @@ function showPlanTimeline(ref) {
 }
 
 document.addEventListener("click", (ev) => {
+  const open = ev.target.closest("[data-open]");
+  if (open) $(open.dataset.open).open = true;
   const a = ev.target.closest("[data-timeline]");
   if (!a) return;
   showPlanTimeline(a.dataset.timeline);
