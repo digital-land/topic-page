@@ -38,6 +38,8 @@ EVENT_STAGE = {
     "plan-adopted": 4,
     "adopted": 4,
 }
+# current LPAs whose organisation record has no LPA area reference
+NO_AREA_LPAS = {"development-corporation:Q72456968"}
 # repeated events further apart than this are taken to be a new plan cycle
 CYCLE_GAP_DAYS = 31
 
@@ -60,17 +62,27 @@ PLAN_FIELDS = [
 
 
 def current_lpas():
-    """References of current LPAs: organisations with an LPA area and no end-date."""
+    """Current LPAs: organisations with an LPA role and no end-date.
+
+    The organisation dataset holds the LPA area reference in
+    local-planning-authority, which is blank for South Tees Development
+    Corporation, still a current LPA.
+    """
     path = CACHE / "organisation.csv"
     if not path.exists():
         print("fetching organisation", file=sys.stderr)
         urllib.request.urlretrieve(ORGANISATIONS, path)
     with open(path, newline="", encoding="utf-8") as f:
-        return sorted(
-            o["local-planning-authority"]
+        return [
+            {
+                "organisation": o["organisation"],
+                "name": o["name"],
+                "reference": o["local-planning-authority"],
+            }
             for o in csv.DictReader(f)
-            if o["local-planning-authority"] and not o["end-date"]
-        )
+            if not o["end-date"]
+            and (o["local-planning-authority"] or o["organisation"] in NO_AREA_LPAS)
+        ]
 
 
 def fetch(dataset):

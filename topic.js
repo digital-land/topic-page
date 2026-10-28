@@ -121,7 +121,7 @@ function renderStats() {
   ];
   if (data["current-lpas"].length) {
     // a plan can cover several LPAs, either as a joint plan or through a joint planning group
-    const lpas = new Set(data["current-lpas"]);
+    const lpas = data["current-lpas"];
     const withPlan = new Set();
     const withAdopted = new Set();
     plans.forEach((p) =>
@@ -131,11 +131,11 @@ function renderStats() {
       })
     );
     const share = (set) => {
-      const n = [...lpas].filter((r) => set.has(r)).length;
-      return `${n} (${Math.round((n / lpas.size) * 100)}%)`;
+      const n = lpas.filter((l) => set.has(l.reference)).length;
+      return `${n} (${Math.round((n / lpas.length) * 100)}%)`;
     };
     stats.push(
-      [lpas.size, "current local planning authorities (LPAs)"],
+      [lpas.length, "current local planning authorities (LPAs)"],
       [share(withPlan), `of LPAs covered by a ${topic.singular}`],
       [share(withAdopted), `of LPAs covered by an adopted ${topic.singular}`]
     );
@@ -419,9 +419,21 @@ function plansWithoutBoundary() {
 
 const lpaProblem = (p) => ({ 0: "No LPA recorded", 1: "Unknown LPA" })[lpasOf(p).length] ?? "Unknown group";
 
+// current LPAs with no area reference, or none in the boundary data
+function lpasWithoutBoundary() {
+  const refs = new Set(data.boundaries.features.map((f) => f.properties.reference));
+  return (data["current-lpas"] ?? []).filter((l) => !refs.has(l.reference));
+}
+
 function renderMissingBoundaries() {
   const missing = plansWithoutBoundary();
   if (!missing.length) return "";
+  const noLpa = lpasWithoutBoundary();
+  const lpaTable = noLpa.length
+    ? `<p class="govuk-body">${noLpa.length} of the ${data["current-lpas"].length} current LPAs have no boundary:</p><ul class="govuk-list govuk-list--bullet">${noLpa
+        .map((l) => `<li>${esc(l.name)} (${l.reference ? `${esc(l.reference)} not in boundary data` : "no LPA area in the organisation data"})</li>`)
+        .join("")}</ul>`
+    : "";
   const rows = missing
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
@@ -433,6 +445,7 @@ function renderMissingBoundaries() {
   return (
     `<h3 class="govuk-heading-m" id="boundaries-heading">Plans with missing boundaries</h3>` +
     `<p class="govuk-body">${missing.length} of ${data.plans.length} plans can't be shown on the map, because they have no boundary or the boundary isn't in the boundary data.</p>` +
+    lpaTable +
     `<details class="govuk-details" id="missing-boundaries"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${missing.length} plans</span></summary><div class="govuk-details__text">` +
     `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row">${th("Plan")}${th("LPAs")}${th("Status")}${th("Problem")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`
   );
