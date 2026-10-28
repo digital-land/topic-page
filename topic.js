@@ -242,7 +242,7 @@ function renderMap() {
   const keyWidth = $("map-panel").offsetWidth + 30;
   const padRight = map.getSize().x - keyWidth >= 300 ? keyWidth : 0;
   if (layer.getBounds().isValid()) map.fitBounds(layer.getBounds(), { paddingBottomRight: [padRight, 0] });
-  const noBoundary = data.plans.filter((p) => !planByRef[p.boundary] || !data.boundaries.features.some((f) => f.properties.reference === p.boundary)).length;
+  const noBoundary = plansWithoutBoundary().length;
   $("legend").innerHTML =
     [[COLOUR.adopted, "Has an adopted plan"], [COLOUR.progress, "Plan in progress"], [COLOUR.notStated, "Status not stated"]]
       .map(([c, l]) => `<div class="legend-item"><span class="swatch" style="background:${c}"></span>${l}</div>`)
@@ -309,6 +309,7 @@ function renderTimeline() {
     `<div class="chart-wrap">${svg}</div>` +
     renderJourney() +
     renderIssues() +
+    renderMissingBoundaries() +
     `<div id="plan-timeline" aria-live="polite"></div>` +
     `<p class="govuk-body-s">Select a plan on the map or in the search results to see its own timetable.</p>`;
 }
@@ -378,6 +379,31 @@ function renderJourney() {
     } Select a line to see the plan's timetable.</p>` +
     `<div class="chart-key">${Object.keys(colour).map((k) => `<span class="legend-item"><span class="swatch" style="background:${colour[k]}"></span>${label[k]}</span>`).join("")}<span class="legend-item"><span class="swatch swatch--predicted"></span>Predicted</span></div>` +
     `<div class="chart-wrap">${svg}</div>`
+  );
+}
+
+// plans with no boundary reference, or one that isn't in the boundary data
+function plansWithoutBoundary() {
+  const refs = new Set(data.boundaries.features.map((f) => f.properties.reference));
+  return data.plans.filter((p) => !refs.has(p.boundary));
+}
+
+function renderMissingBoundaries() {
+  const missing = plansWithoutBoundary();
+  if (!missing.length) return "";
+  const rows = missing
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(
+      (p) =>
+        `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a></td><td class="govuk-table__cell">${esc(p["authority-name"] || p.authorities || "Not stated")}</td><td class="govuk-table__cell">${esc(statusOf(p) || "Not stated")}</td><td class="govuk-table__cell">${p.boundary ? `${esc(p.boundary)} not in boundary data` : "No boundary"}</td></tr>`
+    )
+    .join("");
+  const th = (t) => `<th scope="col" class="govuk-table__header">${t}</th>`;
+  return (
+    `<h3 class="govuk-heading-m" id="boundaries-heading">Plans with missing boundaries</h3>` +
+    `<p class="govuk-body">${missing.length} of ${data.plans.length} plans can't be shown on the map, because they have no boundary or the boundary isn't in the boundary data.</p>` +
+    `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${missing.length} plans</span></summary><div class="govuk-details__text">` +
+    `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row">${th("Plan")}${th("Authority")}${th("Status")}${th("Problem")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`
   );
 }
 
