@@ -1,0 +1,50 @@
+name: Refresh data
+
+on:
+  schedule:
+    # 09:00 UTC every day
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency: refresh
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # no cache on the runner, so every dataset is fetched fresh
+      - run: python build.py
+
+      - name: Commit changed data
+        id: commit
+        run: |
+          if git diff --quiet -- data; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git commit -m "Refresh data"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # pushes made with GITHUB_TOKEN don't start a Pages build by themselves
+      - name: Rebuild the page
+        if: steps.commit.outputs.changed == 'true'
+        run: gh api -X POST "repos/$GITHUB_REPOSITORY/pages/builds"
+        env:
+          GH_TOKEN: ${{ github.token }}
