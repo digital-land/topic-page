@@ -303,15 +303,23 @@ function renderMap() {
   // the initial view is as far out as the map goes
   map.setMinZoom(map.getZoom());
   const noBoundary = plansWithoutBoundary().length;
+  // current areas by status; former authorities underneath are left out
+  const counts = {};
+  features
+    .filter((f) => !f.properties.former)
+    .forEach((f) => {
+      const s = boundaryState(planByRef[f.properties.reference] ?? []);
+      counts[s] = (counts[s] ?? 0) + 1;
+    });
   $("legend").innerHTML =
     [
-      [COLOUR.newPlan, `New ${topic.singular} being developed (started after March 2026)`],
-      [COLOUR.progress, `Existing ${topic.singular} being developed (started before March 2026)`],
-      [COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
-      [COLOUR.noAdopted, `No adopted ${topic.singular} is in place`],
-      [null, "Unknown status"],
+      ["new", COLOUR.newPlan, `New ${topic.singular} being developed (started after March 2026)`],
+      ["existing", COLOUR.progress, `Existing ${topic.singular} being developed (started before March 2026)`],
+      ["adopted", COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
+      ["noAdopted", COLOUR.noAdopted, `No adopted ${topic.singular} is in place`],
+      ["unknown", null, "Unknown status"],
     ]
-      .map(([c, l]) => `<div class="legend-item"><span class="swatch"${c ? ` style="background:${c}"` : ""}></span>${l}</div>`)
+      .map(([s, c, l]) => `<div class="legend-item"><span class="swatch"${c ? ` style="background:${c}"` : ""}></span>${l}: <strong>${counts[s] ?? 0}</strong></div>`)
       .join("") +
     `<p class="govuk-body-s">${data.events.length ? `<a class="govuk-link" href="#boundaries-heading" data-open="missing-boundaries">${noBoundary}</a>` : noBoundary} of ${data.plans.length} plans have no boundary on the map. Select an area to see its plans.</p>`;
   document.querySelector(".map-panel__close").addEventListener("click", () => toggleMapPanel(false));
