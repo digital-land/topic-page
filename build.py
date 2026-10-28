@@ -42,6 +42,31 @@ EVENT_STAGE = {
 }
 # current LPAs whose organisation record has no LPA area reference
 NO_AREA_LPAS = {"development-corporation:Q72456968"}
+# milestones that only exist in the new plan-making system, from March 2026
+NEW_SYSTEM_EVENTS = {
+    "publish-notice-intention-commence",
+    "publish-notice-of-intention-to-commence-local-plan-preparation",
+    "Notice of Intention to Commence Plan",
+    "gateway-1-self-assessment",
+    "gateway-1:-self-assessment-of-readiness",
+    "gateway-2-advice-sought",
+    "gateway-2-advice-published",
+    "gateway-3-advice-sought",
+    "gateway-3-advice-published",
+    "gateway-3-further-advice-sought",
+    "gateway-3-repeat-advice-published",
+    "scoping-consultation-start",
+    "scoping-consultation-end",
+    "SEA-scoping-report-consultation-start",
+    "plan-content-evidence-consultation-start",
+    "plan-content-evidence-consultation-end",
+    "consultation:-proposed-local-plan-content-and-evidence-start",
+    "consultation:-proposed-local-plan-content-and-evidence-end",
+    "proposed-plan-consultation-start",
+    "proposed-plan-consultation-end",
+    "consultation:-proposed-local-plan-start",
+    "consultation:-proposed-local-plan-end",
+}
 # repeated events further apart than this are taken to be a new plan cycle
 CYCLE_GAP_DAYS = 31
 
@@ -310,6 +335,9 @@ def build(slug, topic):
             # skip milestones with no date at all (unfilled timetable templates)
             if event["plan"] in refs and (event["date"] or event["earliest"]):
                 events.append(event)
+    new_system = {e["plan"] for e in events if e["event"] in NEW_SYSTEM_EVENTS}
+    for row in rows:
+        row["new-system"] = row["reference"] in new_system
     issues = flag_reused_references(events)
     lpas, endpoints, organisations = (
         current_lpas() if topic.get("currentLpas") else ([], 0, {})

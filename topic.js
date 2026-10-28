@@ -151,28 +151,16 @@ function renderStats() {
     .join("");
 }
 
-// the new plan-making system: plans started from April 2026 are "new"
-const NEW_PLANS_FROM = "2026-04-01";
-
-// the date of a plan's first timetable event, if it has any
-let planStarts;
-function planStart(p) {
-  planStarts ??= data.events.reduce((m, e) => {
-    if (e.date && !e.suspect && (!m[e.plan] || e.date < m[e.plan])) m[e.plan] = e.date;
-    return m;
-  }, {});
-  return planStarts[p.reference];
-}
-
 // what a plan says about the authority, most significant first
 const PLAN_STATES = ["new", "existing", "adopted", "noAdopted", "unknown"];
 function planState(p) {
   const process = p["local-plan-process"];
-  if (isAdopted(p)) return "adopted";
+  if (adoptedDate(p)) return "adopted";
   if (process === "withdrawn") return "noAdopted";
-  if (!process) return "unknown";
-  // without timetable dates the plan is taken to have started before the new system
-  return (planStart(p) ?? "") >= NEW_PLANS_FROM ? "new" : "existing";
+  // a timetable using the new plan-making system's milestones, such as gateways and scoping
+  if (p["new-system"]) return "new";
+  if (isAdopted(p)) return "adopted";
+  return process ? "existing" : "unknown";
 }
 
 function boundaryState(plans) {
