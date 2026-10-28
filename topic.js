@@ -136,8 +136,8 @@ function renderStats() {
     };
     stats.push(
       [lpas.length, "current local planning authorities (LPAs)"],
-      [share(withPlan), `of LPAs covered by a ${topic.singular}`],
-      [share(withAdopted), `of LPAs covered by an adopted ${topic.singular}`]
+      [share(withPlan), `of current LPAs covered by a ${topic.singular}`],
+      [share(withAdopted), `of current LPAs covered by an adopted ${topic.singular}`]
     );
   } else {
     const current = features.filter((f) => !(f.properties["end-date"] && f.properties["end-date"] <= TODAY)).length;
