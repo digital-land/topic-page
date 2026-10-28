@@ -33,26 +33,6 @@ const EVENT_GROUP = {
   "plan-withdrawn": "withdrawn",
 };
 const STAGES = ["Early consultation", "Publication", "Submitted", "Examination concluded", "Adopted"];
-const EVENT_STAGE = {
-  commenced: 0,
-  "scoping-consultation-start": 0,
-  "content-consultation-start": 0,
-  "reg-18-draft-local-plan-published": 0,
-  "reg-18-consultation-start": 0,
-  "reg-18-public-consultation-start": 0,
-  "reg-19-publication-local-plan-published": 1,
-  "reg-19-public-consultation-start": 1,
-  "proposed-plan-consultation-start": 1,
-  "submit-plan-for-examination": 2,
-  "examination-submitted": 2,
-  "planning-inspectorate-examination-start": 2,
-  "planning-inspectorate-found-sound": 3,
-  "examination-recommendations-published": 3,
-  "inspector-report-published": 3,
-  "planning-inspectorate-examination-end": 3,
-  "plan-adopted": 4,
-  adopted: 4,
-};
 const STATUS_LABEL = {
   adopted: "Adopted",
   "regulation-18": "Regulation 18 consultation",
@@ -274,7 +254,7 @@ function renderTimeline() {
   data.events.forEach((e) => {
     const g = EVENT_GROUP[e.event];
     const y = (e.date || "").slice(0, 4);
-    if (!g || !y) return;
+    if (!g || !y || e.suspect) return;
     ((counts[y] ??= {})[g] ??= new Set()).add(e.plan);
   });
   const years = Object.keys(counts).map(Number).filter((y) => y >= 2004);
@@ -310,6 +290,7 @@ function renderTimeline() {
     `<div class="chart-key">${groups.map((g) => `<span class="legend-item"><span class="swatch" style="background:${GROUPS[g].colour}"></span>${GROUPS[g].label}</span>`).join("")}</div>` +
     `<div class="chart-wrap">${svg}</div>` +
     renderJourney() +
+    renderIssues() +
     `<div id="plan-timeline" aria-live="polite"></div>` +
     `<p class="govuk-body-s">Select a plan on the map or in the search results to see its own timetable.</p>`;
 }
@@ -320,8 +301,8 @@ const isPredicted = (e) => Boolean(e.earliest) || e.event.startsWith("estimated-
 function renderJourney() {
   const byPlan = {};
   data.events.forEach((e) => {
-    const stage = EVENT_STAGE[e.event];
-    if (stage === undefined || !e.date) return;
+    const stage = e.stage;
+    if (stage == null || !e.date || e.suspect) return;
     const stages = (byPlan[e.plan] ??= {});
     if (!stages[stage] || e.date < stages[stage].date) stages[stage] = { date: e.date, predicted: isPredicted(e) };
   });
@@ -382,6 +363,23 @@ function renderJourney() {
   );
 }
 
+function renderIssues() {
+  if (!data.issues?.length) return "";
+  const names = Object.fromEntries(data.plans.map((p) => [p.reference, p.name]));
+  return (
+    `<h3 class="govuk-heading-m" id="issues-heading">Plans with timetable problems</h3>` +
+    `<p class="govuk-body">${data.issues.length} plans reuse a reference for a later plan cycle, or have stages out of date order. The events listed are left out of the charts above.</p>` +
+    `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row"><th scope="col" class="govuk-table__header">Plan</th><th scope="col" class="govuk-table__header">Problem</th><th scope="col" class="govuk-table__header govuk-table__header--numeric">Events left out</th></tr></thead><tbody class="govuk-table__body">` +
+    data.issues
+      .map(
+        (i) =>
+          `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="#timeline-heading" data-timeline="${esc(i.plan)}">${esc(names[i.plan] ?? i.plan)}</a></td><td class="govuk-table__cell">${i.reasons.map(esc).join("; ")}</td><td class="govuk-table__cell govuk-table__cell--numeric">${i.events}</td></tr>`
+      )
+      .join("") +
+    `</tbody></table>`
+  );
+}
+
 function showPlanTimeline(ref) {
   const p = data.plans.find((x) => x.reference === ref);
   const events = data.events
@@ -396,7 +394,7 @@ function showPlanTimeline(ref) {
         const c = GROUPS[EVENT_GROUP[e.event]]?.colour ?? "#b1b4b6";
         const date = e.date ? fmt(e.date) : e.earliest ? `Predicted ${fmt(e.earliest)}${e.latest ? " to " + fmt(e.latest) : ""}` : "No date";
         const pred = isPredicted(e);
-        return `<li${pred ? ' class="predicted"' : ""}><span class="swatch${pred ? " swatch--predicted" : ""}" style="background:${c}"></span><strong>${esc(pred && e.date ? "Predicted " + date : date)}</strong> ${esc(e.event.replaceAll("-", " "))}</li>`;
+        return `<li${e.suspect ? ' class="suspect"' : pred ? ' class="predicted"' : ""}><span class="swatch${pred ? " swatch--predicted" : ""}" style="background:${c}"></span><strong>${esc(pred && e.date ? "Predicted " + date : date)}</strong> ${esc(e.event.replaceAll("-", " "))}${e.suspect ? " (left out of charts)" : ""}</li>`;
       })
       .join("") +
     `</ol></div>`;

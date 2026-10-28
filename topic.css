@@ -54,3 +54,4 @@ body, .govuk-template__body, [class*="govuk-"], input, button, .chart text {
 .journey--predicted { stroke: #6f72af; stroke-dasharray: 5 4; opacity: 0.6; }
 .swatch--predicted { background: #6f72af !important; opacity: 0.6; }
 .plan-timeline .predicted { color: #505a5f; font-style: italic; }
+.plan-timeline .suspect { color: #d4351c; text-decoration: line-through; }
