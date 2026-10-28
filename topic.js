@@ -432,7 +432,7 @@ function renderMissingBoundaries() {
   const noLpa = lpasWithoutBoundary();
   const lpaTable = noLpa.length
     ? `<p class="govuk-body">${noLpa.length} of the ${data["current-lpas"].length} current LPAs have no boundary:</p><ul class="govuk-list govuk-list--bullet">${noLpa
-        .map((l) => `<li>${esc(l.name)} (${l.reference ? `${esc(l.reference)} not in boundary data` : "no LPA area in the organisation data"})</li>`)
+        .map((l) => `<li><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(l.entity)}">${esc(l.name)}</a> (${l.reference ? `${esc(l.reference)} not in boundary data` : "no LPA area in the organisation data"})</li>`)
         .join("")}</ul>`
     : "";
   const rows = missing
@@ -468,7 +468,7 @@ function renderTimetableProviders() {
   const list = (title, items) =>
     items.length
       ? `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">${title}</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${items
-          .map((l) => `<li>${esc(l.name)}</li>`)
+          .map((l) => `<li><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(l.entity)}">${esc(l.name)}</a></li>`)
           .join("")}</ul></div></details>`
       : "";
   return (

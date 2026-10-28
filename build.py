@@ -82,6 +82,7 @@ def current_lpas():
         {
             "organisation": o["organisation"],
             "name": o["name"],
+            "entity": o["entity"],
             "reference": o["local-planning-authority"],
             "timetable-endpoint": o["organisation"] in providers,
         }
