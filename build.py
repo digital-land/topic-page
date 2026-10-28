@@ -12,6 +12,7 @@ from shapely import wkt
 from shapely.geometry import mapping
 
 FILES = "https://files.planning.data.gov.uk/dataset/"
+ORGANISATIONS = "https://files.planning.data.gov.uk/organisation-collection/dataset/organisation.csv"
 CACHE = Path("cache")
 DATA = Path("data")
 csv.field_size_limit(10**9)
@@ -56,6 +57,20 @@ PLAN_FIELDS = [
     "documentation-url",
     "required-housing",
 ]
+
+
+def current_lpas():
+    """References of current LPAs: organisations with an LPA area and no end-date."""
+    path = CACHE / "organisation.csv"
+    if not path.exists():
+        print("fetching organisation", file=sys.stderr)
+        urllib.request.urlretrieve(ORGANISATIONS, path)
+    with open(path, newline="", encoding="utf-8") as f:
+        return sorted(
+            o["local-planning-authority"]
+            for o in csv.DictReader(f)
+            if o["local-planning-authority"] and not o["end-date"]
+        )
 
 
 def fetch(dataset):
@@ -192,6 +207,7 @@ def build(slug, topic):
         "issues": issues,
         "boundaries": {"type": "FeatureCollection", "features": features},
         "events": events,
+        "current-lpas": current_lpas() if topic.get("currentLpas") else [],
         "counts": {
             "plans": len(rows),
             "boundaries": len(boundaries),

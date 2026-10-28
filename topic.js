@@ -106,30 +106,46 @@ async function init() {
   setupSearch();
 }
 
+const lpasOf = (p) => (p.authorities || p.boundary || "").split(/[;-]/).filter(Boolean);
+
 function renderStats() {
   const plans = data.plans;
   const adopted = plans.filter(isAdopted).length;
-  const features = data.boundaries.features;
-  // only areas in the LPA dataset count as LPAs, not joint planning groups or the Broads Authority
-  // (minerals and waste boundaries are mostly county councils, which aren't in that dataset)
-  const lpaAreas = topic.dataset === "local-plan" ? features.filter((f) => f.properties.lpa) : features;
-  const former = new Set(lpaAreas.filter((f) => f.properties["end-date"] && f.properties["end-date"] <= TODAY).map((f) => f.properties.reference));
-  const onMap = plans.filter((p) => features.some((f) => f.properties.reference === p.boundary));
-  const used = new Set(onMap.map((p) => p.boundary));
-  const count = (set) => [...set].filter((r) => used.has(r)).length;
-  const all = new Set(lpaAreas.map((f) => f.properties.reference));
-  const current = new Set([...all].filter((r) => !former.has(r)));
   const plural = `${topic.singular}s`;
+  const features = data.boundaries.features;
+  const onMap = plans.filter((p) => features.some((f) => f.properties.reference === p.boundary));
   const stats = [
     [plans.length, `${plural} on the platform`],
     [adopted, "adopted"],
     [onMap.length, `${plural} with a boundary, ${plans.length - onMap.length} without`],
-    [current.size, `current ${topic.dataset === "local-plan" ? "local planning authorities (LPAs)" : "authorities"} with a boundary, ${count(current)} with a ${topic.singular}`],
   ];
-  if (former.size) stats.push([former.size, `historical ${topic.dataset === "local-plan" ? "LPAs" : "authorities"} with a boundary, ${count(former)} with a ${topic.singular}`]);
+  if (data["current-lpas"].length) {
+    // a plan can cover several LPAs, either as a joint plan or through a joint planning group
+    const lpas = new Set(data["current-lpas"]);
+    const withPlan = new Set();
+    const withAdopted = new Set();
+    plans.forEach((p) =>
+      lpasOf(p).forEach((r) => {
+        withPlan.add(r);
+        if (isAdopted(p)) withAdopted.add(r);
+      })
+    );
+    const share = (set) => {
+      const n = [...lpas].filter((r) => set.has(r)).length;
+      return `${n} (${Math.round((n / lpas.size) * 100)}%)`;
+    };
+    stats.push(
+      [lpas.size, "current local planning authorities (LPAs)"],
+      [share(withPlan), `of LPAs covered by a ${topic.singular}`],
+      [share(withAdopted), `of LPAs covered by an adopted ${topic.singular}`]
+    );
+  } else {
+    const current = features.filter((f) => !(f.properties["end-date"] && f.properties["end-date"] <= TODAY)).length;
+    stats.push([current, "current authorities with a boundary"]);
+  }
   if (topic.expected) stats.push([topic.expected, topic.expectedNote + " in England"]);
   $("stats").innerHTML = stats
-    .map(([n, l]) => `<div class="stat"><strong>${n.toLocaleString("en-GB")}</strong><span>${esc(l)}</span></div>`)
+    .map(([n, l]) => `<div class="stat"><strong>${typeof n === "number" ? n.toLocaleString("en-GB") : n}</strong><span>${esc(l)}</span></div>`)
     .join("");
 }
 
@@ -400,8 +416,8 @@ function plansWithoutBoundary() {
   return data.plans.filter((p) => !refs.has(p.boundary));
 }
 
-const lpas = (p) => (p.authorities || p.boundary || "").split(/[;-]/).filter(Boolean);
-const lpaProblem = (p) => ({ 0: "No LPA recorded", 1: "Unknown LPA" })[lpas(p).length] ?? "Unknown group";
+
+const lpaProblem = (p) => ({ 0: "No LPA recorded", 1: "Unknown LPA" })[lpasOf(p).length] ?? "Unknown group";
 
 function renderMissingBoundaries() {
   const missing = plansWithoutBoundary();
@@ -410,7 +426,7 @@ function renderMissingBoundaries() {
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(
       (p) =>
-        `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a></td><td class="govuk-table__cell">${esc(lpas(p).join(", ") || "Not stated")}</td><td class="govuk-table__cell">${esc(statusOf(p) || "Not stated")}</td><td class="govuk-table__cell">${lpaProblem(p)}</td></tr>`
+        `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a></td><td class="govuk-table__cell">${esc(lpasOf(p).join(", ") || "Not stated")}</td><td class="govuk-table__cell">${esc(statusOf(p) || "Not stated")}</td><td class="govuk-table__cell">${lpaProblem(p)}</td></tr>`
     )
     .join("");
   const th = (t) => `<th scope="col" class="govuk-table__header">${t}</th>`;
