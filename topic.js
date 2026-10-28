@@ -157,7 +157,7 @@ function planState(p) {
   const process = p["local-plan-process"];
   if (adoptedDate(p)) return "adopted";
   if (process === "withdrawn") return "noAdopted";
-  // a timetable using the new plan-making system's milestones, such as gateways and scoping
+  // a timetable with gateway events, predicted or actual, is under the new plan-making system
   if (p["new-system"]) return "new";
   if (isAdopted(p)) return "adopted";
   return process ? "existing" : "unknown";
@@ -168,9 +168,8 @@ function boundaryState(plans) {
   return PLAN_STATES.find((s) => states.has(s)) ?? "unknown";
 }
 
-// new and existing plans being developed share a colour for now
 function boundaryColour(plans) {
-  return { new: COLOUR.progress, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.noAdopted, unknown: COLOUR.notStated }[boundaryState(plans)];
+  return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.noAdopted, unknown: COLOUR.notStated }[boundaryState(plans)];
 }
 
 function planLine(p) {
@@ -300,10 +299,10 @@ function renderMap() {
       const s = boundaryState(planByRef[f.properties.reference] ?? []);
       counts[s] = (counts[s] ?? 0) + 1;
     });
-  counts.developing = (counts.new ?? 0) + (counts.existing ?? 0);
   $("legend").innerHTML =
     [
-      ["developing", COLOUR.progress, `${topic.singular[0].toUpperCase()}${topic.singular.slice(1)} being developed`],
+      ["new", COLOUR.newPlan, `New system ${topic.singular} being developed`],
+      ["existing", COLOUR.progress, `Existing system ${topic.singular} being developed`],
       ["adopted", COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
       ["noAdopted", COLOUR.noAdopted, `No adopted ${topic.singular} is in place`],
       ["unknown", null, "Unknown status"],
