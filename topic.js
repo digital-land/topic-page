@@ -369,8 +369,8 @@ function renderTimeline() {
     `<p class="govuk-body">Number of plans reaching each milestone, by year, from the timetable dataset. ${data.events.length.toLocaleString("en-GB")} events across ${new Set(data.events.map((e) => e.plan)).size} plans.</p>` +
     `<div class="chart-key">${groups.map((g) => `<span class="legend-item"><span class="swatch" style="background:${GROUPS[g].colour}"></span>${GROUPS[g].label}</span>`).join("")}</div>` +
     `<div class="chart-wrap">${svg}</div>` +
-    renderFlows() +
     renderJourney() +
+    renderFlows() +
     renderTimetableProviders() +
     renderSubmissions() +
     renderIssues() +
