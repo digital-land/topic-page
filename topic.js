@@ -724,6 +724,13 @@ function renderSubmissions() {
   );
 }
 
+// a plan links to the provide service page of its first LPA
+function planOrganisationLink(ref, name) {
+  const p = data.plans.find((x) => x.reference === ref);
+  const lpa = p && data["current-lpas"].find((l) => l.reference && lpasOf(p).includes(l.reference));
+  return lpa ? `<a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(lpa.organisation)}">${esc(name)}</a>` : esc(name);
+}
+
 function renderIssues() {
   if (!data.issues?.length) return "";
   const names = Object.fromEntries(data.plans.map((p) => [p.reference, p.name]));
@@ -734,7 +741,7 @@ function renderIssues() {
     data.issues
       .map(
         (i) =>
-          `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="#timeline-heading" data-timeline="${esc(i.plan)}">${esc(names[i.plan] ?? i.plan)}</a></td><td class="govuk-table__cell">${i.reasons.map(esc).join("; ")}</td><td class="govuk-table__cell govuk-table__cell--numeric">${i.events}</td></tr>`
+          `<tr class="govuk-table__row"><td class="govuk-table__cell">${planOrganisationLink(i.plan, names[i.plan] ?? i.plan)} <a class="govuk-link" href="#timeline-heading" data-timeline="${esc(i.plan)}">timeline</a></td><td class="govuk-table__cell">${i.reasons.map(esc).join("; ")}</td><td class="govuk-table__cell govuk-table__cell--numeric">${i.events}</td></tr>`
       )
       .join("") +
     `</tbody></table>`
