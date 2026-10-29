@@ -102,6 +102,7 @@ async function init() {
   $("summary").textContent = topic.summary;
   renderStats();
   renderMap();
+  renderCoverage();
   renderTimeline();
   renderLinks();
   renderDatasets();
@@ -161,6 +162,17 @@ function planState(p) {
   if (p["new-system"]) return "new";
   if (isAdopted(p)) return "adopted";
   return process ? "existing" : "unknown";
+}
+
+// the status of an area, in the order of the map key
+function stateDefs() {
+  return [
+    ["new", COLOUR.newPlan, `New system ${topic.singular} being developed`],
+    ["existing", COLOUR.progress, `Existing system ${topic.singular} being developed`],
+    ["adopted", COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
+    ["noAdopted", COLOUR.noAdopted, `No adopted ${topic.singular} is in place`],
+    ["unknown", null, "Unknown status"],
+  ];
 }
 
 function boundaryState(plans) {
@@ -307,13 +319,7 @@ function renderMap() {
       counts[s] = (counts[s] ?? 0) + 1;
     });
   $("legend").innerHTML =
-    [
-      ["new", COLOUR.newPlan, `New system ${topic.singular} being developed`],
-      ["existing", COLOUR.progress, `Existing system ${topic.singular} being developed`],
-      ["adopted", COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
-      ["noAdopted", COLOUR.noAdopted, `No adopted ${topic.singular} is in place`],
-      ["unknown", null, "Unknown status"],
-    ]
+    stateDefs()
       .map(([s, c, l]) => `<div class="legend-item"><span class="swatch"${c ? ` style="background:${c}"` : ""}></span>${l}: <strong>${counts[s] ?? 0}</strong></div>`)
       .join("") +
     `<p class="govuk-body-s">${data.events.length ? `<a class="govuk-link" href="#boundaries-heading" data-open="missing-boundaries">${noBoundary}</a>` : noBoundary} of ${data.plans.length} plans have no boundary on the map. Select an area to see its plans.</p>`;
@@ -327,6 +333,87 @@ function toggleMapPanel(open, moveFocus = true) {
   openBtn.hidden = open;
   openBtn.setAttribute("aria-expanded", open);
   if (moveFocus) (open ? panel : openBtn).focus();
+}
+
+// a single stacked bar, as wide as the page, with a key below
+function stackedBar(title, intro, segments) {
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  const [w, h] = [960, 56];
+  let x = 0;
+  let svg = `<svg class="chart" viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;min-width:640px" role="img" aria-label="${esc(title)}">`;
+  segments.forEach((s) => {
+    const sw = total ? (s.value / total) * w : 0;
+    if (sw > 0) {
+      const fill = s.colour ?? "#f3f2f1";
+      svg += `<rect x="${x}" y="0" width="${sw}" height="${h}" fill="${fill}" stroke="${s.colour ? "#fff" : "#b1b4b6"}"><title>${esc(s.label)}: ${esc(s.text)}</title></rect>`;
+      if (sw > 40) svg += `<text x="${x + sw / 2}" y="${h / 2 + 5}" text-anchor="middle" font-size="16" font-weight="700" style="fill:${s.colour && s.colour !== COLOUR.noAdopted ? "#fff" : "#0b0c0c"}">${esc(s.short)}</text>`;
+    }
+    x += sw;
+  });
+  svg += `</svg>`;
+  const key = segments
+    .map((s) => `<div class="legend-item"><span class="swatch"${s.colour ? ` style="background:${s.colour}"` : ""}></span>${esc(s.label)}: <strong>${esc(s.text)}</strong></div>`)
+    .join("");
+  return `<h3 class="govuk-heading-m">${esc(title)}</h3><p class="govuk-body">${intro}</p><div class="chart-wrap">${svg}</div><div class="chart-key">${key}</div>`;
+}
+
+// approximate area in square kilometres of a boundary drawn in degrees
+function areaKm2(f) {
+  const [, south, , north] = bbox(f);
+  return featureArea(f) * Math.cos(((south + north) / 2) * (Math.PI / 180)) * 111.19 * 111.19;
+}
+
+function renderCoverage() {
+  const defs = stateDefs();
+  const pct = (v, total) => `${Math.round((v / total) * 100)}%`;
+  const current = data.boundaries.features.filter((f) => !(f.properties["end-date"] && f.properties["end-date"] <= TODAY));
+
+  // 1. areas on the map, as in the map key
+  const areas = {};
+  current.forEach((f) => {
+    const s = boundaryState(planByRef[f.properties.reference] ?? []);
+    areas[s] = (areas[s] ?? 0) + 1;
+  });
+  const chart1 = stackedBar(
+    "Active areas",
+    `${current.length} current areas on the map, by the status of their plans. These are the numbers in the map key.`,
+    defs.map(([s, colour, label]) => ({ label, colour, value: areas[s] ?? 0, short: `${areas[s] ?? 0}`, text: `${areas[s] ?? 0} (${pct(areas[s] ?? 0, current.length)})` }))
+  );
+
+  // 2. the same, weighted by the size of each LPA. Joint planning groups overlap their LPAs, so only LPAs are used.
+  const lpaAreas = current.filter((f) => f.properties.lpa);
+  const size = {};
+  let totalSize = 0;
+  lpaAreas.forEach((f) => {
+    const ref = f.properties.reference;
+    const s = boundaryState(data.plans.filter((p) => lpasOf(p).includes(ref)));
+    const km = areaKm2(f);
+    size[s] = (size[s] ?? 0) + km;
+    totalSize += km;
+  });
+  const km = (v) => `${Math.round(v).toLocaleString("en-GB")} km²`;
+  const chart2 = stackedBar(
+    "Area covered",
+    `${lpaAreas.length} current LPAs, by the area they cover (about ${km(totalSize)}) and the status of the plans that cover them, including joint plans. Areas are approximate.`,
+    defs.map(([s, colour, label]) => ({ label, colour, value: size[s] ?? 0, short: pct(size[s] ?? 0, totalSize), text: `${km(size[s] ?? 0)} (${pct(size[s] ?? 0, totalSize)})` }))
+  );
+
+  // 3. every plan on the platform
+  const plans = {};
+  data.plans.forEach((p) => (plans[planState(p)] = (plans[planState(p)] ?? 0) + 1));
+  const planLabels = {
+    new: `New system ${topic.singular}s being developed`,
+    existing: `Existing system ${topic.singular}s being developed`,
+    adopted: `Adopted ${topic.singular}s`,
+    noAdopted: `Withdrawn ${topic.singular}s`,
+    unknown: "Unknown status",
+  };
+  const chart3 = stackedBar(
+    "Plans on the platform",
+    `${data.plans.length} ${topic.singular}s, by status. A plan with gateway events in its timetable is under the new system.`,
+    defs.map(([s, colour]) => ({ label: planLabels[s], colour, value: plans[s] ?? 0, short: `${plans[s] ?? 0}`, text: `${plans[s] ?? 0} (${pct(plans[s] ?? 0, data.plans.length)})` }))
+  );
+  $("coverage").innerHTML = chart1 + chart2 + chart3;
 }
 
 function renderTimeline() {
