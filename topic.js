@@ -759,15 +759,17 @@ const events = data["timetable-events"] ?? {};
     `<h3 class="govuk-heading-m" id="providers-heading">LPAs providing timetable data</h3>` +
     `<p class="govuk-body">Of ${lpas.length} current LPAs, ${pct(own.length)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${pct(withEvents.length)} have timetable events for at least one of their plans, including events that did not come from an endpoint of their own.</p>` +
     `<div class="stats">` +
+    // timetables first, then LPA provision, then the events in them
+    stat(`${planRefs.size} (${Math.round((planRefs.size / data.plans.length) * 100)}%)`, `of ${data.plans.length} ${topic.singular}s have a timetable`) +
+    stat(pct(own.length), "of current LPAs publish their own timetable") +
+    stat(pct(withEvents.length), "of current LPAs have a timetable") +
+    stat(ownNoEvents.length, "publish a timetable but have no events here") +
+    stat(none.length, "have no timetable data") +
     (events.total
       ? stat(events.total.toLocaleString("en-GB"), "timetable events") +
         stat(evPct(events.lpa), "events provided by LPAs and other local authorities, not government") +
         stat(evPct(events.endpoint), "events from LPAs publishing their own timetable")
       : "") +
-    stat(pct(own.length), "of current LPAs publish their own timetable") +
-    stat(pct(withEvents.length), "of current LPAs have timetable events") +
-    stat(ownNoEvents.length, "publish a timetable but have no events here") +
-    stat(none.length, "have no timetable data") +
     `</div>` +
     list(`List the ${ownNoEvents.length} LPAs that publish a timetable but have no events here`, ownNoEvents) +
     list(`List the ${none.length} LPAs with no timetable data`, none)
