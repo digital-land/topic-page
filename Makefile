@@ -3,10 +3,10 @@ PYTHON := .venv/bin/python
 .PHONY: data serve format
 
 data:
-	$(PYTHON) build.py
+	$(PYTHON) bin/build.py
 
 serve:
-	$(PYTHON) server.py
+	$(PYTHON) bin/server.py
 
 format:
-	.venv/bin/black *.py
+	.venv/bin/black bin/*.py
