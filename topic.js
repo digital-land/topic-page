@@ -174,7 +174,7 @@ function boundaryColour(plans) {
 
 function planLine(p) {
   const hasEvents = data.events.some((e) => e.plan === p.reference);
-  return `<li><a class="govuk-link" href="${esc(p["documentation-url"] || p["document-url"] || "#")}">${esc(p.name)}</a> (${esc(statusOf(p))})${
+  return `<li><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a> (${esc(statusOf(p))})${
     hasEvents ? ` <a class="govuk-link" href="#timeline-heading" data-timeline="${esc(p.reference)}">timeline</a>` : ""
   }</li>`;
 }
