@@ -505,16 +505,22 @@ const FLOW_STAGES = [
   ["Withdrawn", COLOUR.withdrawn],
 ];
 const FLOW_FROM = 2010;
+const PREDICTED_COLOUR = "#6f777b";
 
-// dated stage events of each plan, leaving out predicted dates and events flagged as suspect
+// dated stage events of each plan, leaving out events flagged as suspect. Predicted ones,
+// dated in the future, are kept apart.
 function planStages() {
-  const stages = {};
+  const actual = {};
+  const predicted = {};
   data.events.forEach((e) => {
-    if (!e.date || e.suspect || isPredicted(e)) return;
+    const date = e.date || e.earliest;
+    if (!date || e.suspect) return;
     const stage = e.event === "plan-withdrawn" ? 5 : e.stage ?? (EVENT_GROUP[e.event] === "preparing" ? 0 : null);
-    if (stage !== null) (stages[e.plan] ??= []).push([e.date, stage]);
+    if (stage === null) return;
+    if (date > TODAY) (predicted[e.plan] ??= []).push([date, stage]);
+    else if (!isPredicted(e)) (actual[e.plan] ??= []).push([date, stage]);
   });
-  return stages;
+  return { actual, predicted };
 }
 
 // each LPA is at the stage of its most recently active plan on the given date
@@ -531,14 +537,18 @@ function lpaStage(plans, stages, date) {
 }
 
 function flowChart(title, refs, planFilter, description, marks = []) {
-  const stages = planStages();
+  const { actual, predicted } = planStages();
   const byLpa = {};
   data.plans.filter(planFilter).forEach((p) => lpasOf(p).filter((r) => refs.has(r)).forEach((r) => (byLpa[r] ??= []).push(p)));
   const lpas = Object.values(byLpa);
   if (!lpas.length) return "";
   const thisYear = new Date(TODAY).getUTCFullYear();
-  const years = Array.from({ length: thisYear - FLOW_FROM + 1 }, (_, i) => FLOW_FROM + i);
-  const at = years.map((y) => lpas.map((plans) => lpaStage(plans, stages, y < thisYear ? `${y}-12-31` : TODAY)));
+  // later years use predicted dates too, as far as the timetables go
+  const lastPredicted = Math.max(thisYear, ...Object.values(predicted).flat().map(([d]) => +d.slice(0, 4)));
+  const years = Array.from({ length: Math.min(lastPredicted, thisYear + 6) - FLOW_FROM + 1 }, (_, i) => FLOW_FROM + i);
+  const isFuture = (i) => years[i] > thisYear;
+  const withPredicted = Object.fromEntries([...new Set([...Object.keys(actual), ...Object.keys(predicted)])].map((r) => [r, [...(actual[r] ?? []), ...(predicted[r] ?? [])]]));
+  const at = years.map((y) => lpas.map((plans) => (y > thisYear ? lpaStage(plans, withPredicted, `${y}-12-31`) : lpaStage(plans, actual, y < thisYear ? `${y}-12-31` : TODAY))));
   const n = FLOW_STAGES.length;
   const counts = at.map((col) => FLOW_STAGES.map((_, s) => col.filter((v) => v === s).length));
   const flows = years.slice(1).map((_, i) => {
@@ -565,6 +575,11 @@ function flowChart(title, refs, planFilter, description, marks = []) {
   const colX = (i) => ml + (i * (w - ml - mr - nodeW)) / (years.length - 1);
   const nodeH = (i, s) => counts[i][s] * k;
   let svg = `<svg class="chart" viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;min-width:760px" role="img" aria-label="${esc(title)}: flow of LPAs between plan stages each year">`;
+  const firstFuture = years.findIndex((_, i) => isFuture(i));
+  if (firstFuture > 0) {
+    const x = (colX(firstFuture - 1) + nodeW + colX(firstFuture)) / 2;
+    svg += `<rect x="${x}" y="${mt - 6}" width="${w - mr - x + 4}" height="${h - mb - mt + 6}" fill="#f3f2f1"/><text x="${(x + w - mr) / 2}" y="${mt - 10}" text-anchor="middle" font-size="12" fill="#505a5f">Predicted</text>`;
+  }
   FLOW_STAGES.forEach(([label, colour], s) => {
     svg += `<line class="grid" x1="${ml}" x2="${w - mr}" y1="${band[s].mid}" y2="${band[s].mid}"/><text x="${ml - 12}" y="${band[s].mid + 4}" text-anchor="end">${label}</text>`;
   });
@@ -586,14 +601,14 @@ function flowChart(title, refs, planFilter, description, marks = []) {
         out[a] += t;
         inn[b] += t;
         const xm = (x0 + x1) / 2;
-        svg += `<path d="M${x0},${y0} C${xm},${y0} ${xm},${y1} ${x1},${y1} L${x1},${y1 + t} C${xm},${y1 + t} ${xm},${y0 + t} ${x0},${y0 + t}Z" fill="${FLOW_STAGES[a][1]}" fill-opacity="${a === b ? 0.3 : 0.55}"><title>${v} LPA${v === 1 ? "" : "s"}: ${FLOW_STAGES[a][0]} ${years[i]} to ${FLOW_STAGES[b][0]} ${years[i + 1]}</title></path>`;
+        svg += `<path d="M${x0},${y0} C${xm},${y0} ${xm},${y1} ${x1},${y1} L${x1},${y1 + t} C${xm},${y1 + t} ${xm},${y0 + t} ${x0},${y0 + t}Z" fill="${isFuture(i + 1) ? PREDICTED_COLOUR : FLOW_STAGES[a][1]}" fill-opacity="${a === b ? 0.3 : 0.55}"><title>${v} LPA${v === 1 ? "" : "s"}: ${FLOW_STAGES[a][0]} ${years[i]} to ${FLOW_STAGES[b][0]} ${years[i + 1]}</title></path>`;
       }
     });
   });
   counts.forEach((c, i) =>
     c.forEach((v, s) => {
       if (!v) return;
-      svg += `<rect x="${colX(i)}" y="${band[s].mid - nodeH(i, s) / 2}" width="${nodeW}" height="${Math.max(nodeH(i, s), 1.5)}" fill="${FLOW_STAGES[s][1]}"><title>${years[i]}: ${v} LPA${v === 1 ? "" : "s"} at ${FLOW_STAGES[s][0].toLowerCase()}</title></rect>`;
+      svg += `<rect x="${colX(i)}" y="${band[s].mid - nodeH(i, s) / 2}" width="${nodeW}" height="${Math.max(nodeH(i, s), 1.5)}" fill="${isFuture(i) ? PREDICTED_COLOUR : FLOW_STAGES[s][1]}"><title>${years[i]}: ${v} LPA${v === 1 ? "" : "s"} at ${FLOW_STAGES[s][0].toLowerCase()}${isFuture(i) ? " (predicted)" : ""}</title></rect>`;
     })
   );
   svg += `</svg>`;
@@ -612,7 +627,7 @@ function renderFlows() {
   former.forEach((f) => (ended[f.properties["end-date"].slice(0, 4)] = (ended[f.properties["end-date"].slice(0, 4)] ?? 0) + 1));
   return (
     `<h3 class="govuk-heading-m" id="flows-heading">How LPAs move between plan stages</h3>` +
-    `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. Plans with no timetable events are left out, as are predicted dates.</p>` +
+    `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. Plans with no timetable events are left out. The grey years to the right are predicted from timetable dates in the future.</p>` +
     flowChart("Plans covering one LPA", current, (p) => lpasOf(p).length === 1, "Current LPAs, by the plans that cover only that LPA.") +
     flowChart("Joint plans", current, (p) => lpasOf(p).length > 1, "Current LPAs, by the plans they share with other LPAs. Each LPA is counted once, however many LPAs share the plan.") +
     flowChart(

@@ -42,6 +42,18 @@ EVENT_STAGE = {
 }
 # current LPAs whose organisation record has no LPA area reference
 NO_AREA_LPAS = {"development-corporation:Q72456968"}
+# stages reached by estimated events, kept apart from EVENT_STAGE so they aren't
+# checked against actual dates
+ESTIMATED_STAGE = {
+    "estimated-reg-18-draft-local-plan-published": 0,
+    "estimated-reg-18-public-consultation-start": 0,
+    "estimated-reg-18-public-consultation-end": 0,
+    "estimated-reg-19-publication-local-plan-published": 1,
+    "estimated-reg-19-public-consultation-start": 1,
+    "estimated-reg-19-public-consultation-end": 1,
+    "estimated-submit-plan-for-examination": 2,
+    "estimated-plan-adoption-date": 4,
+}
 # gateway milestones, which only exist in the new plan-making system, predicted or actual
 NEW_SYSTEM_EVENTS = {
     "gateway-1-self-assessment",
@@ -317,7 +329,9 @@ def build(slug, topic):
                 or t.get("predicted-date", ""),
                 "latest": t.get("predicted-latest-date", ""),
             }
-            event["stage"] = EVENT_STAGE.get(event["event"])
+            event["stage"] = EVENT_STAGE.get(
+                event["event"], ESTIMATED_STAGE.get(event["event"])
+            )
             # skip milestones with no date at all (unfilled timetable templates)
             if event["plan"] in refs and (event["date"] or event["earliest"]):
                 events.append(event)
