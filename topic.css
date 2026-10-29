@@ -57,3 +57,5 @@ body, .govuk-template__body, [class*="govuk-"], input, button, .chart text {
 .plan-timeline .suspect { color: #d4351c; text-decoration: line-through; }
 .swatch--ring { background: #fff !important; border: 2px solid #505a5f; box-sizing: border-box; }
 .lane-label { font-size: 12px; fill: #1d70b8; text-decoration: underline; }
+/* a greyscale basemap, so the coloured areas stand out */
+#map .leaflet-tile-pane { filter: grayscale(1); }
