@@ -26,7 +26,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       # no cache on the runner, so every dataset is fetched fresh
-      - run: python build.py
+      - run: python bin/build.py
 
       - name: Commit changed data
         id: commit

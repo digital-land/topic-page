@@ -31,8 +31,9 @@ Open `/` for the list of topics, or `/topic/local-plan` directly (redirects to `
 | File | Purpose |
 | --- | --- |
 | `topics.json` | topic configuration: datasets, summary, guidance and related datasets |
-| `build.py` | downloads CSVs from `files.planning.data.gov.uk` (cached in `cache/`) and writes simplified boundaries, plans and events to `data/` |
-| `server.py` | static server mapping `/` to `index.html` and `/topic/*` to `topic.html?topic=*` |
+| `bin/build.py` | downloads CSVs from `files.planning.data.gov.uk` (cached in `cache/`) and writes simplified boundaries, plans and events to `data/` |
+| `bin/server.py` | static server mapping `/` to `index.html` and `/topic/*` to `topic.html?topic=*` |
+| `bin/commencement.py` | searches LPA websites for local plan commencement notices and writes `data/commencement-notices.csv` |
 | `index.html` | index of topics |
 | `topic.html`, `topic.js`, `topic.css` | the topic page |
 
