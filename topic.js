@@ -227,7 +227,16 @@ const boundaryName = (f) => f.properties.name + (f.properties.former ? " (former
 function renderMap() {
   planByRef = {};
   data.plans.forEach((p) => (planByRef[p.boundary] ??= []).push(p));
-  const map = L.map("map").setView([52.9, -1.6], 6);
+  // a fixed map: areas can be selected, but not panned or zoomed
+  const map = L.map("map", {
+    zoomControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    touchZoom: false,
+    boxZoom: false,
+    keyboard: false,
+  }).setView([52.9, -1.6], 6);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: "© OpenStreetMap contributors",
@@ -288,8 +297,6 @@ function renderMap() {
   const keyWidth = $("map-panel").offsetWidth + 30;
   const padRight = map.getSize().x - keyWidth >= 300 ? keyWidth : 0;
   if (layer.getBounds().isValid()) map.fitBounds(layer.getBounds(), { paddingBottomRight: [padRight, 0] });
-  // the initial view is as far out as the map goes
-  map.setMinZoom(map.getZoom());
   const noBoundary = plansWithoutBoundary().length;
   // current areas by status; former authorities underneath are left out
   const counts = {};
