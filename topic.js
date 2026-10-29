@@ -6,7 +6,6 @@ const COLOUR = {
   submitted: "#f47738", // orange
   notStated: "#505a5f", // dark grey
   newPlan: "#d53880", // pink
-  noAdopted: "#ffdd00", // yellow
   sound: "#4c2c92", // purple
 };
 const GROUPS = {
@@ -170,7 +169,7 @@ function stateDefs() {
     ["new", COLOUR.newPlan, `New system ${topic.singular} being developed`],
     ["existing", COLOUR.progress, `Existing system ${topic.singular} being developed`],
     ["adopted", COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
-    ["noAdopted", COLOUR.noAdopted, `No adopted ${topic.singular} is in place`],
+    ["noAdopted", COLOUR.withdrawn, `No adopted ${topic.singular} is in place`],
     ["unknown", null, "Unknown status"],
   ];
 }
@@ -181,7 +180,7 @@ function boundaryState(plans) {
 }
 
 function boundaryColour(plans) {
-  return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.noAdopted, unknown: COLOUR.notStated }[boundaryState(plans)];
+  return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.withdrawn, unknown: COLOUR.notStated }[boundaryState(plans)];
 }
 
 function planLine(p) {
@@ -346,7 +345,7 @@ function stackedBar(title, intro, segments) {
     if (sw > 0) {
       const fill = s.colour ?? "#f3f2f1";
       svg += `<rect x="${x}" y="0" width="${sw}" height="${h}" fill="${fill}" stroke="${s.colour ? "#fff" : "#b1b4b6"}"><title>${esc(s.label)}: ${esc(s.text)}</title></rect>`;
-      if (sw > 40) svg += `<text x="${x + sw / 2}" y="${h / 2 + 5}" text-anchor="middle" font-size="16" font-weight="700" style="fill:${s.colour && s.colour !== COLOUR.noAdopted ? "#fff" : "#0b0c0c"}">${esc(s.short)}</text>`;
+      if (sw > 40) svg += `<text x="${x + sw / 2}" y="${h / 2 + 5}" text-anchor="middle" font-size="16" font-weight="700" style="fill:${s.colour ? "#fff" : "#0b0c0c"}">${esc(s.short)}</text>`;
     }
     x += sw;
   });
