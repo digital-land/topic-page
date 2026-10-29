@@ -76,6 +76,7 @@ const fmt = (d) =>
 const adoptedDate = (p) => p["start-date"] || p["adopted-date"];
 const isAdopted = (p) => p["local-plan-process"] === "adopted" || Boolean(adoptedDate(p));
 const statusOf = (p) => STATUS_LABEL[p["local-plan-process"]] ?? p["local-plan-process"];
+const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const slugFromPath = () => new URLSearchParams(location.search).get("topic");
 
 let topic, data, quality, planByRef, noticeAreas, lpaRefs, timetableStage, state = { page: 1 };
@@ -402,7 +403,7 @@ function stackedBar(title, intro, segments) {
   const key = segments
     .map((s) => `<div class="legend-item"><span class="swatch"${s.colour ? ` style="background:${s.colour}"` : ""}></span>${esc(s.label)}: <strong>${esc(s.text)}</strong></div>`)
     .join("");
-  return `<h3 class="govuk-heading-m">${esc(title)}</h3><p class="govuk-body">${intro}</p><div class="chart-wrap">${svg}</div><div class="chart-key">${key}</div>`;
+  return `<h3 class="govuk-heading-m" id="${slugify(title)}">${esc(title)}</h3><p class="govuk-body">${intro}</p><div class="chart-wrap">${svg}</div><div class="chart-key">${key}</div>`;
 }
 
 // approximate area in square kilometres of a boundary drawn in degrees
@@ -643,7 +644,7 @@ function renderJourney() {
     .sort((a, b) => a - b);
   const median = durations.length ? durations[Math.floor(durations.length / 2)].toFixed(1) : null;
   return (
-    `<h3 class="govuk-heading-m">Progress through the stages</h3>` +
+    `<h3 class="govuk-heading-m" id="progress-heading">Progress through the stages</h3>` +
     `<p class="govuk-body">One line per plan, from the first date recorded at each stage. ${journeys.length} plans have dates for at least two stages.${
       median ? ` For the ${durations.length} adopted plans with early consultation or publication dates, the median time from first recorded stage to adoption is ${median} years.` : ""
     } Select a line to see the plan's timetable.</p>` +
@@ -811,7 +812,7 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   );
   svg += `</svg>`;
   return (
-    `<h3 class="govuk-heading-m">${esc(title)}</h3>` +
+    `<h3 class="govuk-heading-m" id="${slugify(title)}">${esc(title)}</h3>` +
     `<p class="govuk-body">${lpas.length} LPAs. ${description}</p>` +
     `<div class="chart-wrap">${svg}</div>`
   );
