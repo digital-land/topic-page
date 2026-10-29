@@ -813,6 +813,18 @@ const events = data["timetable-events"] ?? {};
     const group = (title, xs) => (xs.length ? `<h4 class="govuk-heading-s">${title} (${xs.length})</h4><ul class="govuk-list govuk-list--bullet">${xs.map(row).join("")}</ul>` : "");
     return `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${items.length} LPAs showing signs of a new local plan but with no timetable events</span></summary><div class="govuk-details__text"><p class="govuk-body">Found by searching LPA websites for commencement notices, gateway assessments, plan timetables, calls for sites and similar. The search is automatic, so some pages may not be about a new plan, and some LPAs may be missed.</p>${group("No plan on the platform", noPlan)}${group("Plan on the platform but no timetable events", noEvents)}</div></details>`;
   };
+  const signalTable = () => {
+    const cols = Object.keys(SIGNAL);
+    const cell = (l, k) => (l.signals?.[k] ? `<a class="govuk-link" href="${esc(l.signals[k])}">Yes</a>` : "");
+    const rows = [...lpas]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(
+        (l) =>
+          `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(l.organisation)}">${esc(l.name)}</a></td><td class="govuk-table__cell">${hasPlan.has(l.reference) ? "Yes" : ""}</td><td class="govuk-table__cell">${hasEvents(l) ? "Yes" : ""}</td>${cols.map((k) => `<td class="govuk-table__cell">${cell(l, k)}</td>`).join("")}</tr>`,
+      )
+      .join("");
+    return `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">Table of all ${lpas.length} current LPAs and the signals found</span></summary><div class="govuk-details__text"><table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row"><th class="govuk-table__header">LPA</th><th class="govuk-table__header">Plan</th><th class="govuk-table__header">Timetable events</th>${cols.map((k) => `<th class="govuk-table__header">${SIGNAL[k]}</th>`).join("")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`;
+  };
   return (
     `<h3 class="govuk-heading-m" id="providers-heading">LPAs providing timetable data</h3>` +
     `<p class="govuk-body">Of ${lpas.length} current LPAs, ${pct(own.length)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${pct(withEvents.length)} have dated timetable events, either for at least one of their plans or published by them for a plan that isn't in the ${esc(topic.dataset)} dataset or doesn't list them. This includes events that did not come from an endpoint of their own.</p>` +
@@ -831,7 +843,8 @@ const events = data["timetable-events"] ?? {};
     `</div>` +
     list(`List the ${ownNoEvents.length} LPAs that publish a timetable but have no events here`, ownNoEvents) +
     list(`List the ${none.length} LPAs with no timetable data`, none) +
-    noticeList(noticeNoEvents)
+    noticeList(noticeNoEvents) +
+    signalTable()
   );
 }
 
