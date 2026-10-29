@@ -761,8 +761,8 @@ const events = data["timetable-events"] ?? {};
     `<div class="stats">` +
     // timetables first, then LPA provision, then the events in them
     stat(`${planRefs.size} (${Math.round((planRefs.size / data.plans.length) * 100)}%)`, `of ${data.plans.length} ${topic.singular}s have a timetable`) +
-    stat(pct(own.length), "of current LPAs publish their own timetable") +
     stat(pct(withEvents.length), "of current LPAs have a timetable") +
+    stat(pct(own.length), "of current LPAs publish their own timetable") +
     stat(ownNoEvents.length, "publish a timetable but have no events here") +
     stat(none.length, "have no timetable data") +
     (events.total
