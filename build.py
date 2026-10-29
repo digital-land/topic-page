@@ -113,7 +113,7 @@ def current_lpas():
         if not o["end-date"]
         and (o["local-planning-authority"] or o["organisation"] in NO_AREA_LPAS)
     ]
-    return lpas, endpoints, organisations
+    return lpas, endpoints, organisations, providers
 
 
 def timetable_providers(organisations):
@@ -316,6 +316,7 @@ def build(slug, topic):
         row["authority-name"] = names.get(row["boundary"], "")
         rows.append(row)
     events = []
+    event_orgs = []
     if topic["timetable"]:
         # local-plan-timetable links on local-plan; the shared plan-timetable on plan
         key = "plan" if topic["timetable"] == "plan-timetable" else topic["dataset"]
@@ -335,13 +336,24 @@ def build(slug, topic):
             # skip milestones with no date at all (unfilled timetable templates)
             if event["plan"] in refs and (event["date"] or event["earliest"]):
                 events.append(event)
+                event_orgs.append(t["organisation-entity"])
     new_system = {e["plan"] for e in events if e["event"] in NEW_SYSTEM_EVENTS}
     for row in rows:
         row["new-system"] = row["reference"] in new_system
     issues = flag_reused_references(events)
-    lpas, endpoints, organisations = (
-        current_lpas() if topic.get("currentLpas") else ([], 0, {})
+    lpas, endpoints, organisations, providers = (
+        current_lpas() if topic.get("currentLpas") else ([], 0, {}, set())
     )
+    # who published each event: any organisation but government, or one with its own endpoint
+    by_entity = {o["entity"]: o["organisation"] for o in organisations.values()}
+    event_counts = {
+        "total": len(events),
+        "lpa": sum(
+            not by_entity.get(o, "government-organisation").startswith("government")
+            for o in event_orgs
+        ),
+        "endpoint": sum(by_entity.get(o) in providers for o in event_orgs),
+    }
     submissions = (
         lpa_submissions([topic["dataset"], topic["timetable"]], lpas, organisations)
         if lpas
@@ -354,6 +366,7 @@ def build(slug, topic):
         "events": events,
         "current-lpas": lpas,
         "timetable-endpoints": endpoints,
+        "timetable-events": event_counts if lpas else {},
         "lpa-submissions": submissions,
         "counts": {
             "plans": len(rows),

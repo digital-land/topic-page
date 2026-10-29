@@ -746,6 +746,8 @@ function renderTimetableProviders() {
   const withEvents = lpas.filter(hasEvents);
   const ownNoEvents = own.filter((l) => !hasEvents(l));
   const none = lpas.filter((l) => !hasEvents(l) && !l["timetable-endpoint"]);
+const events = data["timetable-events"] ?? {};
+  const evPct = (n) => `${n.toLocaleString("en-GB")} (${Math.round((n / events.total) * 100)}%)`;
   const stat = (n, l) => `<div class="stat"><strong>${n}</strong><span>${l}</span></div>`;
   const list = (title, items) =>
     items.length
@@ -757,6 +759,11 @@ function renderTimetableProviders() {
     `<h3 class="govuk-heading-m" id="providers-heading">LPAs providing timetable data</h3>` +
     `<p class="govuk-body">Of ${lpas.length} current LPAs, ${pct(own.length)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${pct(withEvents.length)} have timetable events for at least one of their plans, including events that did not come from an endpoint of their own.</p>` +
     `<div class="stats">` +
+    (events.total
+      ? stat(events.total.toLocaleString("en-GB"), "timetable events") +
+        stat(evPct(events.lpa), "events provided by LPAs and other local authorities, not government") +
+        stat(evPct(events.endpoint), "events from LPAs publishing their own timetable")
+      : "") +
     stat(pct(own.length), "of current LPAs publish their own timetable") +
     stat(pct(withEvents.length), "of current LPAs have timetable events") +
     stat(ownNoEvents.length, "publish a timetable but have no events here") +
