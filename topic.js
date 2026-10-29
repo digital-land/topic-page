@@ -78,7 +78,7 @@ const isAdopted = (p) => p["local-plan-process"] === "adopted" || Boolean(adopte
 const statusOf = (p) => STATUS_LABEL[p["local-plan-process"]] ?? p["local-plan-process"];
 const slugFromPath = () => new URLSearchParams(location.search).get("topic");
 
-let topic, data, planByRef, noticeAreas, lpaRefs, timetableStage, state = { page: 1 };
+let topic, data, quality, planByRef, noticeAreas, lpaRefs, timetableStage, state = { page: 1 };
 
 async function init() {
   const slug = slugFromPath();
@@ -90,7 +90,16 @@ async function init() {
     $("error-text").textContent = `Topic "${slug}" not found. Try ${Object.keys(topics).join(", ")}.`;
     return;
   }
-  data = await (await fetch(`data/${slug}.json`, { cache: "no-cache" })).json();
+  // authoritative data only, or all data including the historic data we seeded
+  quality = new URLSearchParams(location.search).get("quality") === "authoritative" ? "authoritative" : null;
+  $("authoritative").checked = Boolean(quality);
+  $("authoritative").addEventListener("change", (e) => {
+    const params = new URLSearchParams(location.search);
+    if (e.target.checked) params.set("quality", "authoritative");
+    else params.delete("quality");
+    location.search = params;
+  });
+  data = await (await fetch(`data/${slug}${quality ? `-${quality}` : ""}.json`, { cache: "no-cache" })).json();
   data.plans.sort((a, b) => a.name.localeCompare(b.name));
   // only keep timetables linked to a plan in the dataset, or credited to an LPA by the build
   const refs = new Set([...data.plans, ...(data["timetable-plans"] ?? [])].map((p) => p.reference));
@@ -195,7 +204,8 @@ function stateDefs() {
     ["existing", COLOUR.progress, `Existing system ${topic.singular} being developed`],
     ["adopted", COLOUR.adopted, `There is an adopted ${topic.singular} in place`],
     ["noAdopted", COLOUR.withdrawn, `No adopted ${topic.singular} is in place`],
-    ["unknown", null, "Unknown status"],
+    // with authoritative data only, most areas are unknown because they have no plans at all
+    ["unknown", null, quality ? "No authoritative plan data" : "Unknown status"],
   ];
 }
 

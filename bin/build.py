@@ -370,9 +370,17 @@ def lpa_notices(notices, lpas, organisations):
     return sorted(out.values(), key=lambda n: (n["organisation"], n["plan"]))
 
 
-def build(slug, topic):
+def build(slug, topic, quality=None):
+    """Write the data for a topic to data/{slug}.json.
+
+    With a quality, only plans and timetable rows of that quality are used, and the
+    data is written to data/{slug}-{quality}.json. Authoritative leaves out the
+    historic data we seeded, which has a quality of some. Boundaries are kept.
+    """
     plans = fetch(topic["dataset"])
     boundaries = fetch(topic["boundary"])
+    if quality:
+        plans = [p for p in plans if p["quality"] == quality]
     # leave out minerals and waste plans and planning groups recorded as local plan data
     if topic["dataset"] == "local-plan":
         plans = [p for p in plans if not MINERALS_AND_WASTE.search(p["name"])]
@@ -419,6 +427,8 @@ def build(slug, topic):
         # local-plan-timetable links on local-plan; the shared plan-timetable on plan
         key = "plan" if topic["timetable"] == "plan-timetable" else topic["dataset"]
         for t in fetch(topic["timetable"]):
+            if quality and t["quality"] != quality:
+                continue
             if is_notice(t[f"{key}-event"]):
                 t[f"{key}-event"] = NOTICE_EVENT
             event = {
@@ -531,11 +541,13 @@ def build(slug, topic):
         },
     }
     DATA.mkdir(exist_ok=True)
-    (DATA / f"{slug}.json").write_text(json.dumps(out, separators=(",", ":")))
-    print(slug, out["counts"])
+    name = f"{slug}-{quality}" if quality else slug
+    (DATA / f"{name}.json").write_text(json.dumps(out, separators=(",", ":")))
+    print(name, out["counts"])
 
 
 if __name__ == "__main__":
     topics = json.load(open("topics.json"))
     for slug in sys.argv[1:] or topics:
         build(slug, topics[slug])
+        build(slug, topics[slug], "authoritative")

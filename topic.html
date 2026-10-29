@@ -68,6 +68,19 @@
         <h1 class="govuk-heading-xl" id="heading"></h1>
         <p class="govuk-body-l" id="summary"></p>
 
+        <div class="govuk-form-group">
+          <div class="govuk-checkboxes govuk-checkboxes--small">
+            <div class="govuk-checkboxes__item">
+              <input class="govuk-checkboxes__input" id="authoritative" type="checkbox" aria-describedby="authoritative-hint">
+              <label class="govuk-label govuk-checkboxes__label" for="authoritative">Only show authoritative data</label>
+              <div id="authoritative-hint" class="govuk-hint govuk-checkboxes__hint">
+                Leave out the historic data we seeded, which has a quality of &lsquo;some&rsquo;.
+                Boundaries are all authoritative, so the map still shows every area.
+              </div>
+            </div>
+          </div>
+        </div>
+
         <section class="topic-section">
           <h2 class="govuk-heading-l">Map</h2>
           <div class="map-wrap">
