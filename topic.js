@@ -78,7 +78,7 @@ const isAdopted = (p) => p["local-plan-process"] === "adopted" || Boolean(adopte
 const statusOf = (p) => STATUS_LABEL[p["local-plan-process"]] ?? p["local-plan-process"];
 const slugFromPath = () => new URLSearchParams(location.search).get("topic");
 
-let topic, data, planByRef, state = { page: 1 };
+let topic, data, planByRef, noticeAreas, state = { page: 1 };
 
 async function init() {
   const slug = slugFromPath();
@@ -95,6 +95,8 @@ async function init() {
   // only keep timetables linked to a plan in the dataset
   const refs = new Set(data.plans.map((p) => p.reference));
   data.events = data.events.filter((e) => refs.has(e.plan));
+  // LPA areas that have given notice of a new local plan, even if the plan isn't in the dataset yet
+  noticeAreas = new Set((data.notices ?? []).map((n) => n.reference));
   document.title = `${topic.name} - Planning Data`;
   $("crumb").textContent = topic.name;
   $("heading").textContent = topic.name;
@@ -139,7 +141,8 @@ function renderStats() {
     stats.push(
       [lpas.length, "current local planning authorities (LPAs)"],
       [share(withPlan), `of current LPAs covered by a ${topic.singular}`],
-      [share(withAdopted), `of current LPAs covered by an adopted ${topic.singular}`]
+      [share(withAdopted), `of current LPAs covered by an adopted ${topic.singular}`],
+      [share(noticeAreas), `of current LPAs have given notice of intention to commence a new ${topic.singular}`]
     );
   } else {
     const current = features.filter((f) => !(f.properties["end-date"] && f.properties["end-date"] <= TODAY)).length;
@@ -157,7 +160,8 @@ function planState(p) {
   const process = p["local-plan-process"];
   if (adoptedDate(p)) return "adopted";
   if (process === "withdrawn") return "noAdopted";
-  // a timetable with gateway events, predicted or actual, is under the new plan-making system
+  // a timetable with gateway events or a notice of intention to commence, predicted or
+  // actual, is under the new plan-making system
   if (p["new-system"]) return "new";
   if (isAdopted(p)) return "adopted";
   return process ? "existing" : "unknown";
@@ -174,13 +178,16 @@ function stateDefs() {
   ];
 }
 
-function boundaryState(plans) {
+// an LPA that has given notice of a new plan is under the new system, whether or not
+// that plan is in the dataset
+function boundaryState(plans, ref) {
   const states = new Set(plans.map(planState));
+  if (noticeAreas.has(ref)) states.add("new");
   return PLAN_STATES.find((s) => states.has(s)) ?? "unknown";
 }
 
-function boundaryColour(plans) {
-  return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.withdrawn, unknown: COLOUR.notStated }[boundaryState(plans)];
+function boundaryColour(plans, ref) {
+  return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.withdrawn, unknown: COLOUR.notStated }[boundaryState(plans, ref)];
 }
 
 function planLine(p) {
@@ -266,8 +273,8 @@ function renderMap() {
       color: "#0b0c0c",
       weight: 1,
       // authorities with an unknown status are see-through, but still selectable
-      fillOpacity: boundaryState(planByRef[f.properties.reference] ?? []) === "unknown" ? 0 : 1,
-      fillColor: boundaryColour(planByRef[f.properties.reference] ?? []),
+      fillOpacity: boundaryState(planByRef[f.properties.reference] ?? [], f.properties.reference) === "unknown" ? 0 : 1,
+      fillColor: boundaryColour(planByRef[f.properties.reference] ?? [], f.properties.reference),
     }),
     onEachFeature: (f, l) => l.bindTooltip(esc(boundaryName(f))),
   }).addTo(map);
@@ -314,7 +321,7 @@ function renderMap() {
   features
     .filter((f) => !f.properties.former)
     .forEach((f) => {
-      const s = boundaryState(planByRef[f.properties.reference] ?? []);
+      const s = boundaryState(planByRef[f.properties.reference] ?? [], f.properties.reference);
       counts[s] = (counts[s] ?? 0) + 1;
     });
   $("legend").innerHTML =
@@ -370,7 +377,7 @@ function renderCoverage() {
   // 1. areas on the map, as in the map key
   const areas = {};
   current.forEach((f) => {
-    const s = boundaryState(planByRef[f.properties.reference] ?? []);
+    const s = boundaryState(planByRef[f.properties.reference] ?? [], f.properties.reference);
     areas[s] = (areas[s] ?? 0) + 1;
   });
   const lpaCount = current.filter((f) => f.properties.lpa).length;
@@ -392,7 +399,7 @@ function renderCoverage() {
   let totalSize = 0;
   lpaAreas.forEach((f) => {
     const ref = f.properties.reference;
-    const s = boundaryState(data.plans.filter((p) => lpasOf(p).includes(ref)));
+    const s = boundaryState(data.plans.filter((p) => lpasOf(p).includes(ref)), ref);
     const km = areaKm2(f);
     size[s] = (size[s] ?? 0) + km;
     totalSize += km;
@@ -416,10 +423,36 @@ function renderCoverage() {
   };
   const chart3 = stackedBar(
     "Plans on the platform",
-    `${data.plans.length} ${topic.singular}s, by status. A plan with gateway events in its timetable is under the new system.`,
+    `${data.plans.length} ${topic.singular}s, by status. A plan with gateway events or a notice of intention to commence in its timetable is under the new system.`,
     defs.map(([s, colour]) => ({ label: planLabels[s], colour, value: plans[s] ?? 0, short: `${plans[s] ?? 0}`, text: `${plans[s] ?? 0} (${pct(plans[s] ?? 0, data.plans.length)})` }))
   );
-  $("coverage").innerHTML = chart1 + chart2 + chart3;
+  $("coverage").innerHTML = chart1 + chart2 + chart3 + renderNotices();
+}
+
+// current LPAs that have given notice of intention to commence a new plan
+function renderNotices() {
+  const notices = data.notices ?? [];
+  if (!notices.length) return "";
+  const lpas = Object.fromEntries(data["current-lpas"].map((l) => [l.organisation, l]));
+  const plans = Object.fromEntries(data.plans.map((p) => [p.reference, p]));
+  const count = new Set(notices.map((n) => n.organisation)).size;
+  const unlinked = new Set(notices.filter((n) => !n.linked).map((n) => n.organisation)).size;
+  const th = (t) => `<th scope="col" class="govuk-table__header">${t}</th>`;
+  const rows = notices
+    .map((n) => ({ ...n, name: lpas[n.organisation]?.name ?? n.organisation }))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.plan.localeCompare(b.plan))
+    .map((n) => {
+      const p = plans[n.plan];
+      const plan = p ? `<a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a>` : `${esc(n.plan)} <strong class="govuk-tag govuk-tag--yellow">Not in ${esc(topic.dataset)}</strong>`;
+      return `<tr class="govuk-table__row"><td class="govuk-table__cell"><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(n.organisation)}">${esc(n.name)}</a></td><td class="govuk-table__cell">${plan}</td><td class="govuk-table__cell">${fmt(n.date)}</td></tr>`;
+    })
+    .join("");
+  return (
+    `<h3 class="govuk-heading-m" id="notices-heading">Notice of intention to commence</h3>` +
+    `<p class="govuk-body">${count} current LPAs have given notice of intention to commence a new ${topic.singular}, from the notice dates in their timetables. A notice from a planning group counts for each LPA in the group. For ${unlinked} of these LPAs, the timetable refers to a plan that isn't in the ${esc(topic.dataset)} dataset, so the plan can't be shown on its own. They are still shown as developing a new system ${topic.singular} on the map.</p>` +
+    `<details class="govuk-details" id="notices"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${count} LPAs</span></summary><div class="govuk-details__text">` +
+    `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row">${th("LPA")}${th("Plan")}${th("Notice given")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`
+  );
 }
 
 function renderTimeline() {

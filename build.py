@@ -3,6 +3,7 @@
 import csv
 import io
 import json
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -54,7 +55,10 @@ ESTIMATED_STAGE = {
     "estimated-submit-plan-for-examination": 2,
     "estimated-plan-adoption-date": 4,
 }
-# gateway milestones, which only exist in the new plan-making system, predicted or actual
+# notice of intention to commence a new local plan, which LPAs spell several ways
+NOTICE_EVENT = "publish-notice-intention-commence"
+# gateway milestones and the notice of intention to commence, which only exist in the
+# new plan-making system, predicted or actual
 NEW_SYSTEM_EVENTS = {
     "gateway-1-self-assessment",
     "gateway-1:-self-assessment-of-readiness",
@@ -64,7 +68,10 @@ NEW_SYSTEM_EVENTS = {
     "gateway-3-advice-published",
     "gateway-3-further-advice-sought",
     "gateway-3-repeat-advice-published",
+    NOTICE_EVENT,
 }
+# notices for plans that aren't new local plans, when their plan isn't in the dataset
+NOT_LOCAL_PLAN = re.compile(r"mineral|waste|supplementary|\bm(?:w)?lp\b", re.I)
 # repeated events further apart than this are taken to be a new plan cycle
 CYCLE_GAP_DAYS = 31
 
@@ -283,6 +290,43 @@ def flag_reused_references(events):
     return sorted(issues, key=lambda i: i["plan"])
 
 
+def is_notice(event):
+    name = event.lower()
+    return "intention" in name and "commence" in name
+
+
+def lpa_notices(notices, lpas, organisations):
+    """Current LPAs that have given notice of intention to commence a new local plan.
+
+    A notice from a planning group counts for each member LPA. One entry per LPA
+    and plan, with whether the plan is in the plan dataset.
+    """
+    current = {l["organisation"]: l for l in lpas}
+    by_entity = {o["entity"]: o for o in organisations.values()}
+    out = {}
+    for entity, plan, when, linked in notices:
+        org = by_entity.get(entity)
+        if not org:
+            continue
+        owners = [org["organisation"]] + [
+            m for m in org.get("organisations", "").split(";") if m
+        ]
+        for o in owners:
+            if o in current:
+                item = out.setdefault(
+                    (o, plan),
+                    {
+                        "organisation": o,
+                        "reference": current[o]["reference"],
+                        "plan": plan,
+                        "date": when,
+                        "linked": linked,
+                    },
+                )
+                item["date"] = min(item["date"], when)
+    return sorted(out.values(), key=lambda n: (n["organisation"], n["plan"]))
+
+
 def build(slug, topic):
     plans = fetch(topic["dataset"])
     boundaries = fetch(topic["boundary"])
@@ -317,11 +361,15 @@ def build(slug, topic):
         rows.append(row)
     events = []
     event_orgs = []
+    notices = []
+    today = date.today().isoformat()
     if topic["timetable"]:
         # local-plan-timetable links on local-plan; the shared plan-timetable on plan
         key = "plan" if topic["timetable"] == "plan-timetable" else topic["dataset"]
         refs = {p["reference"] for p in plans}
         for t in fetch(topic["timetable"]):
+            if is_notice(t[f"{key}-event"]):
+                t[f"{key}-event"] = NOTICE_EVENT
             event = {
                 "plan": t[key],
                 "event": t[f"{key}-event"],
@@ -337,6 +385,21 @@ def build(slug, topic):
             if event["plan"] in refs and (event["date"] or event["earliest"]):
                 events.append(event)
                 event_orgs.append(t["organisation-entity"])
+            # notices already given, including for new plans not yet in the plan dataset
+            if (
+                event["event"] == NOTICE_EVENT
+                and event["date"]
+                and event["date"] <= today
+                and (event["plan"] in refs or not NOT_LOCAL_PLAN.search(event["plan"]))
+            ):
+                notices.append(
+                    (
+                        t["organisation-entity"],
+                        event["plan"],
+                        event["date"],
+                        event["plan"] in refs,
+                    )
+                )
     new_system = {e["plan"] for e in events if e["event"] in NEW_SYSTEM_EVENTS}
     for row in rows:
         row["new-system"] = row["reference"] in new_system
@@ -368,6 +431,7 @@ def build(slug, topic):
         "timetable-endpoints": endpoints,
         "timetable-events": event_counts if lpas else {},
         "lpa-submissions": submissions,
+        "notices": lpa_notices(notices, lpas, organisations) if lpas else [],
         "counts": {
             "plans": len(rows),
             "boundaries": len(boundaries),
