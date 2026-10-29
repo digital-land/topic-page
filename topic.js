@@ -369,6 +369,7 @@ function renderTimeline() {
     `<p class="govuk-body">Number of plans reaching each milestone, by year, from the timetable dataset. ${data.events.length.toLocaleString("en-GB")} events across ${new Set(data.events.map((e) => e.plan)).size} plans.</p>` +
     `<div class="chart-key">${groups.map((g) => `<span class="legend-item"><span class="swatch" style="background:${GROUPS[g].colour}"></span>${GROUPS[g].label}</span>`).join("")}</div>` +
     `<div class="chart-wrap">${svg}</div>` +
+    renderFlows() +
     renderJourney() +
     renderTimetableProviders() +
     renderSubmissions() +
@@ -484,6 +485,136 @@ function renderMissingBoundaries() {
     lpaTable +
     `<details class="govuk-details" id="missing-boundaries"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${missing.length} plans</span></summary><div class="govuk-details__text">` +
     `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row">${th("Plan")}${th("LPAs")}${th("Status")}${th("Problem")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`
+  );
+}
+
+// stages for the flow charts, in order from preparation to adopted, then withdrawn
+const FLOW_STAGES = [
+  ["Preparation", "#5694ca"],
+  ["Publication", COLOUR.progress],
+  ["Submitted", COLOUR.submitted],
+  ["Examination concluded", COLOUR.sound],
+  ["Adopted", COLOUR.adopted],
+  ["Withdrawn", COLOUR.withdrawn],
+];
+const FLOW_FROM = 2010;
+
+// dated stage events of each plan, leaving out predicted dates and events flagged as suspect
+function planStages() {
+  const stages = {};
+  data.events.forEach((e) => {
+    if (!e.date || e.suspect || isPredicted(e)) return;
+    const stage = e.event === "plan-withdrawn" ? 5 : e.stage ?? (EVENT_GROUP[e.event] === "preparing" ? 0 : null);
+    if (stage !== null) (stages[e.plan] ??= []).push([e.date, stage]);
+  });
+  return stages;
+}
+
+// each LPA is at the stage of its most recently active plan on the given date
+function lpaStage(plans, stages, date) {
+  let best;
+  plans.forEach((p) => {
+    const events = (stages[p.reference] ?? []).filter(([d]) => d <= date);
+    if (!events.length) return;
+    const last = events.reduce((m, [d]) => (d > m ? d : m), "");
+    const stage = events.some(([, s]) => s === 5) ? 5 : Math.max(...events.map(([, s]) => s));
+    if (!best || last + stage > best.key) best = { key: last + stage, stage };
+  });
+  return best?.stage;
+}
+
+function flowChart(title, refs, planFilter, description, marks = []) {
+  const stages = planStages();
+  const byLpa = {};
+  data.plans.filter(planFilter).forEach((p) => lpasOf(p).filter((r) => refs.has(r)).forEach((r) => (byLpa[r] ??= []).push(p)));
+  const lpas = Object.values(byLpa);
+  if (!lpas.length) return "";
+  const thisYear = new Date(TODAY).getUTCFullYear();
+  const years = Array.from({ length: thisYear - FLOW_FROM + 1 }, (_, i) => FLOW_FROM + i);
+  const at = years.map((y) => lpas.map((plans) => lpaStage(plans, stages, y < thisYear ? `${y}-12-31` : TODAY)));
+  const n = FLOW_STAGES.length;
+  const counts = at.map((col) => FLOW_STAGES.map((_, s) => col.filter((v) => v === s).length));
+  const flows = years.slice(1).map((_, i) => {
+    const m = FLOW_STAGES.map(() => FLOW_STAGES.map(() => 0));
+    at[i].forEach((a, l) => {
+      const b = at[i + 1][l];
+      if (a !== undefined && b !== undefined) m[a][b]++;
+    });
+    return m;
+  });
+
+  // each stage has its own band, as tall as its biggest column
+  const [w, ml, mr, mt, mb, gap, nodeW] = [960, 150, 20, marks.length ? 40 : 24, 30, 14, 10];
+  const peak = FLOW_STAGES.map((_, s) => Math.max(1, ...counts.map((c) => c[s])));
+  const k = 440 / peak.reduce((a, b) => a + b, 0);
+  const band = [];
+  let y = mt;
+  peak.forEach((p, s) => {
+    const hgt = Math.max(p * k, 16);
+    band.push({ top: y, mid: y + hgt / 2 });
+    y += hgt + gap;
+  });
+  const h = y - gap + mb;
+  const colX = (i) => ml + (i * (w - ml - mr - nodeW)) / (years.length - 1);
+  const nodeH = (i, s) => counts[i][s] * k;
+  let svg = `<svg class="chart" viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;min-width:760px" role="img" aria-label="${esc(title)}: flow of LPAs between plan stages each year">`;
+  FLOW_STAGES.forEach(([label, colour], s) => {
+    svg += `<line class="grid" x1="${ml}" x2="${w - mr}" y1="${band[s].mid}" y2="${band[s].mid}"/><text x="${ml - 12}" y="${band[s].mid + 4}" text-anchor="end">${label}</text>`;
+  });
+  years.forEach((yr, i) => (svg += `<text x="${colX(i) + nodeW / 2}" y="${h - 8}" text-anchor="middle">${yr}</text>`));
+  marks.forEach(([yr, text], i) => {
+    const x = colX(yr - FLOW_FROM) + nodeW / 2;
+    svg += `<line x1="${x}" x2="${x}" y1="${mt - 6 - (i % 2) * 14}" y2="${h - mb}" stroke="#505a5f" stroke-dasharray="4 3"/><text x="${x}" y="${mt - 10 - (i % 2) * 14}" text-anchor="middle" font-size="12">${esc(text)}</text>`;
+  });
+  // ribbons first, so the nodes sit on top
+  flows.forEach((m, i) => {
+    const out = FLOW_STAGES.map((_, s) => band[s].mid - nodeH(i, s) / 2);
+    const inn = FLOW_STAGES.map((_, s) => band[s].mid - nodeH(i + 1, s) / 2);
+    FLOW_STAGES.forEach((_, a) => {
+      for (let b = 0; b < n; b++) {
+        const v = m[a][b];
+        if (!v) continue;
+        const [x0, x1, t, hh] = [colX(i) + nodeW, colX(i + 1), v * k, null];
+        const [y0, y1] = [out[a], inn[b]];
+        out[a] += t;
+        inn[b] += t;
+        const xm = (x0 + x1) / 2;
+        svg += `<path d="M${x0},${y0} C${xm},${y0} ${xm},${y1} ${x1},${y1} L${x1},${y1 + t} C${xm},${y1 + t} ${xm},${y0 + t} ${x0},${y0 + t}Z" fill="${FLOW_STAGES[a][1]}" fill-opacity="${a === b ? 0.3 : 0.55}"><title>${v} LPA${v === 1 ? "" : "s"}: ${FLOW_STAGES[a][0]} ${years[i]} to ${FLOW_STAGES[b][0]} ${years[i + 1]}</title></path>`;
+      }
+    });
+  });
+  counts.forEach((c, i) =>
+    c.forEach((v, s) => {
+      if (!v) return;
+      svg += `<rect x="${colX(i)}" y="${band[s].mid - nodeH(i, s) / 2}" width="${nodeW}" height="${Math.max(nodeH(i, s), 1.5)}" fill="${FLOW_STAGES[s][1]}"><title>${years[i]}: ${v} LPA${v === 1 ? "" : "s"} at ${FLOW_STAGES[s][0].toLowerCase()}</title></rect>`;
+    })
+  );
+  svg += `</svg>`;
+  return (
+    `<h3 class="govuk-heading-m">${esc(title)}</h3>` +
+    `<p class="govuk-body">${lpas.length} LPAs. ${description}</p>` +
+    `<div class="chart-wrap">${svg}</div>`
+  );
+}
+
+function renderFlows() {
+  const current = new Set((data["current-lpas"] ?? []).map((l) => l.reference).filter(Boolean));
+  if (!current.size) return "";
+  const former = data.boundaries.features.filter((f) => f.properties.lpa && f.properties["end-date"] && f.properties["end-date"] <= TODAY);
+  const ended = {};
+  former.forEach((f) => (ended[f.properties["end-date"].slice(0, 4)] = (ended[f.properties["end-date"].slice(0, 4)] ?? 0) + 1));
+  return (
+    `<h3 class="govuk-heading-m" id="flows-heading">How LPAs move between plan stages</h3>` +
+    `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. Plans with no timetable events are left out, as are predicted dates.</p>` +
+    flowChart("Plans covering one LPA", current, (p) => lpasOf(p).length === 1, "Current LPAs, by the plans that cover only that LPA.") +
+    flowChart("Joint plans", current, (p) => lpasOf(p).length > 1, "Current LPAs, by the plans they share with other LPAs. Each LPA is counted once, however many LPAs share the plan.") +
+    flowChart(
+      "Reorganised LPAs",
+      new Set(former.map((f) => f.properties.reference)),
+      () => true,
+      `Authorities that no longer exist, which were merged or replaced. Dashed lines mark the years they ended: ${Object.entries(ended).map(([y, c]) => `${c} in ${y}`).join(", ")}.`,
+      Object.entries(ended).map(([y, c]) => [+y, `${c} ended`])
+    )
   );
 }
 
