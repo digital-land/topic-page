@@ -16,6 +16,7 @@ from shapely.geometry import mapping
 FILES = "https://files.planning.data.gov.uk/dataset/"
 ORGANISATIONS = "https://files.planning.data.gov.uk/organisation-collection/dataset/organisation.csv"
 DATASETTE = "https://datasette.planning.data.gov.uk/digital-land.json"
+PERFORMANCE = "https://datasette.planning.data.gov.uk/performance.json"
 CACHE = Path("cache")
 DATA = Path("data")
 csv.field_size_limit(10**9)
@@ -70,6 +71,8 @@ NEW_SYSTEM_EVENTS = {
     "gateway-3-repeat-advice-published",
     NOTICE_EVENT,
 }
+# minerals and waste plans and areas recorded in the local plan datasets
+MINERALS_AND_WASTE = re.compile(r"mineral|waste", re.I)
 # notices for plans that aren't new local plans, when their plan isn't in the dataset
 NOT_LOCAL_PLAN = re.compile(r"mineral|waste|supplementary|\bm(?:w)?lp\b", re.I)
 # name of the template record LPAs copy for a new local plan, before filling it in
@@ -144,34 +147,50 @@ def plan_signals():
     return signals
 
 
-def timetable_providers(organisations):
-    """Organisations (and members of planning groups) with a plan-timetable endpoint.
+def is_local_plan_maker(organisation, organisations):
+    """A current LPA, or a local planning group that isn't for minerals and waste."""
+    o = organisations.get(organisation, {})
+    if organisation.startswith("local-planning-group:"):
+        return not MINERALS_AND_WASTE.search(o.get("name", ""))
+    return not o.get("end-date") and bool(
+        o.get("local-planning-authority") or organisation in NO_AREA_LPAS
+    )
 
-    Uses the same query as the datasette link on the page, which leaves out
-    government organisations. Returns the organisations and the endpoint count.
+
+def timetable_providers(organisations):
+    """Organisations (and planning group members) with an active plan-timetable endpoint.
+
+    Uses the provision summary in the performance database, which only counts
+    endpoints that haven't ended. plan-timetable is shared by every kind of plan, so
+    only current LPAs and local planning groups count: government organisations,
+    county councils and minerals and waste planning groups are left out.
+    Returns the organisations and the endpoint count.
     """
-    path = CACHE / "plan-timetable-sources.json"
+    path = CACHE / "plan-timetable-provision.json"
     if not path.exists():
-        print("fetching plan-timetable sources", file=sys.stderr)
+        print("fetching plan-timetable provision", file=sys.stderr)
         query = urllib.parse.urlencode(
             {
-                "sql": "select source.organisation, endpoint_url from source_pipeline, source, endpoint "
-                'where "pipeline" = :p0 and source_pipeline.source = source.source '
-                "and source.endpoint = endpoint.endpoint "
+                "sql": "select organisation, active_endpoint_count from provision_summary "
+                "where dataset = :p0 and active_endpoint_count > 0 "
                 'and organisation not like "government-organisation%"',
                 "p0": "plan-timetable",
                 "_size": "max",
                 "_shape": "array",
             }
         )
-        urllib.request.urlretrieve(f"{DATASETTE}?{query}", path)
-    sources = json.loads(path.read_text())
+        urllib.request.urlretrieve(f"{PERFORMANCE}?{query}", path)
+    provision = [
+        p
+        for p in json.loads(path.read_text())
+        if is_local_plan_maker(p["organisation"], organisations)
+    ]
     providers = set()
-    for s in sources:
-        providers.add(s["organisation"])
-        members = organisations.get(s["organisation"], {}).get("organisations", "")
+    for p in provision:
+        providers.add(p["organisation"])
+        members = organisations.get(p["organisation"], {}).get("organisations", "")
         providers.update(m for m in members.split(";") if m)
-    return providers, len(sources)
+    return providers, sum(p["active_endpoint_count"] for p in provision)
 
 
 def lpa_submissions(pipelines, lpas, organisations):
@@ -354,6 +373,10 @@ def lpa_notices(notices, lpas, organisations):
 def build(slug, topic):
     plans = fetch(topic["dataset"])
     boundaries = fetch(topic["boundary"])
+    # leave out minerals and waste plans and planning groups recorded as local plan data
+    if topic["dataset"] == "local-plan":
+        plans = [p for p in plans if not MINERALS_AND_WASTE.search(p["name"])]
+        boundaries = [b for b in boundaries if not MINERALS_AND_WASTE.search(b["name"])]
     # abolished authorities (e.g. districts merged into a unitary) have an end-date
     ended = {a["reference"]: a["end-date"] for a in fetch("local-planning-authority")}
     names = {}
