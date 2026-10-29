@@ -767,7 +767,7 @@ const events = data["timetable-events"] ?? {};
     stat(none.length, "have no timetable data") +
     (events.total
       ? stat(events.total.toLocaleString("en-GB"), "timetable events") +
-        stat(evPct(events.lpa), "events provided by LPAs and other local authorities, not government") +
+        stat(evPct(events.lpa), "events provided by LPAs and other local authorities") +
         stat(evPct(events.endpoint), "events from LPAs publishing their own timetable")
       : "") +
     `</div>` +
