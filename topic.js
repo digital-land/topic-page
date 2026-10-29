@@ -774,7 +774,8 @@ function renderTimetableProviders() {
   const covered = new Set();
   data.plans.filter((p) => planRefs.has(p.reference)).forEach((p) => lpasOf(p).forEach((r) => covered.add(r)));
   const pct = (n) => `${n} (${Math.round((n / lpas.length) * 100)}%)`;
-  const hasEvents = (l) => covered.has(l.reference);
+  // events for one of its plans, or dated rows it published, such as for a plan not yet in the dataset
+  const hasEvents = (l) => covered.has(l.reference) || l["timetable-data"];
   const own = lpas.filter((l) => l["timetable-endpoint"]);
   const withEvents = lpas.filter(hasEvents);
   const ownNoEvents = own.filter((l) => !hasEvents(l));
@@ -790,7 +791,7 @@ const events = data["timetable-events"] ?? {};
       : "";
   return (
     `<h3 class="govuk-heading-m" id="providers-heading">LPAs providing timetable data</h3>` +
-    `<p class="govuk-body">Of ${lpas.length} current LPAs, ${pct(own.length)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${pct(withEvents.length)} have timetable events for at least one of their plans, including events that did not come from an endpoint of their own.</p>` +
+    `<p class="govuk-body">Of ${lpas.length} current LPAs, ${pct(own.length)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${pct(withEvents.length)} have dated timetable events, either for at least one of their plans or published by them for a plan that isn't in the ${esc(topic.dataset)} dataset or doesn't list them. This includes events that did not come from an endpoint of their own.</p>` +
     `<div class="stats">` +
     // timetables first, then LPA provision, then the events in them
     stat(`${planRefs.size} (${Math.round((planRefs.size / data.plans.length) * 100)}%)`, `of ${data.plans.length} ${topic.singular}s have a timetable`) +

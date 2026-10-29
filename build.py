@@ -295,6 +295,16 @@ def is_notice(event):
     return "intention" in name and "commence" in name
 
 
+def owners(entity, organisations):
+    """The organisation with this entity number, and its members if it's a group."""
+    org = next((o for o in organisations.values() if o["entity"] == entity), None)
+    if not org:
+        return []
+    return [org["organisation"]] + [
+        m for m in org.get("organisations", "").split(";") if m
+    ]
+
+
 def lpa_notices(notices, lpas, organisations):
     """Current LPAs that have given notice of intention to commence a new local plan.
 
@@ -302,16 +312,9 @@ def lpa_notices(notices, lpas, organisations):
     and plan, with whether the plan is in the plan dataset.
     """
     current = {l["organisation"]: l for l in lpas}
-    by_entity = {o["entity"]: o for o in organisations.values()}
     out = {}
     for entity, plan, when, linked in notices:
-        org = by_entity.get(entity)
-        if not org:
-            continue
-        owners = [org["organisation"]] + [
-            m for m in org.get("organisations", "").split(";") if m
-        ]
-        for o in owners:
+        for o in owners(entity, organisations):
             if o in current:
                 item = out.setdefault(
                     (o, plan),
@@ -362,6 +365,8 @@ def build(slug, topic):
     events = []
     event_orgs = []
     notices = []
+    # organisations with dated timetable rows, including for plans not in the plan dataset
+    publishers = set()
     today = date.today().isoformat()
     if topic["timetable"]:
         # local-plan-timetable links on local-plan; the shared plan-timetable on plan
@@ -385,6 +390,10 @@ def build(slug, topic):
             if event["plan"] in refs and (event["date"] or event["earliest"]):
                 events.append(event)
                 event_orgs.append(t["organisation-entity"])
+            if (event["date"] or event["earliest"]) and (
+                event["plan"] in refs or not NOT_LOCAL_PLAN.search(event["plan"])
+            ):
+                publishers.add(t["organisation-entity"])
             # notices already given, including for new plans not yet in the plan dataset
             if (
                 event["event"] == NOTICE_EVENT
@@ -407,6 +416,10 @@ def build(slug, topic):
     lpas, endpoints, organisations, providers = (
         current_lpas() if topic.get("currentLpas") else ([], 0, {}, set())
     )
+    # an LPA has timetable data if it, or a planning group it belongs to, published dated rows
+    with_data = {o for e in publishers for o in owners(e, organisations)}
+    for l in lpas:
+        l["timetable-data"] = l["organisation"] in with_data
     # who published each event: any organisation but government, or one with its own endpoint
     by_entity = {o["entity"]: o["organisation"] for o in organisations.values()}
     event_counts = {
