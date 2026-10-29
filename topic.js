@@ -780,7 +780,9 @@ function renderTimetableProviders() {
   const withEvents = lpas.filter(hasEvents);
   const ownNoEvents = own.filter((l) => !hasEvents(l));
   const none = lpas.filter((l) => !hasEvents(l) && !l["timetable-endpoint"]);
-  const noticed = lpas.filter((l) => l["commencement-notice"]);
+  const hasPlan = new Set();
+  data.plans.forEach((p) => lpasOf(p).forEach((r) => hasPlan.add(r)));
+  const noticed = lpas.filter((l) => Object.keys(l.signals ?? {}).length);
   const noticeNoEvents = noticed.filter((l) => !hasEvents(l));
 const events = data["timetable-events"] ?? {};
   const evPct = (n) => `${n.toLocaleString("en-GB")} (${Math.round((n / events.total) * 100)}%)`;
@@ -791,12 +793,26 @@ const events = data["timetable-events"] ?? {};
           .map((l) => `<li><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(l.organisation)}">${esc(l.name)}</a></li>`)
           .join("")}</ul></div></details>`
       : "";
-  const noticeList = (items) =>
-    items.length
-      ? `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${items.length} LPAs with a commencement notice but no timetable events</span></summary><div class="govuk-details__text"><p class="govuk-body">Each has published a notice of intention to commence a new local plan, but the platform has no timetable events for it. Notices were found by searching LPA websites, so the list may be incomplete.</p><ul class="govuk-list govuk-list--bullet">${items
-          .map((l) => `<li><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(l.organisation)}">${esc(l.name)}</a> (<a class="govuk-link" href="${esc(l["commencement-notice"])}">notice</a>)</li>`)
-          .join("")}</ul></div></details>`
-      : "";
+  const SIGNAL = {
+    notice: "commencement notice",
+    gateway: "gateway assessment",
+    timetable: "plan timetable",
+    engagement: "engagement or call for sites",
+    "new-plan": "new plan mentioned",
+  };
+  const noticeList = (items) => {
+    if (!items.length) return "";
+    const row = (l) => {
+      const links = Object.entries(l.signals)
+        .map(([k, u]) => `<a class="govuk-link" href="${esc(u)}">${SIGNAL[k] ?? esc(k)}</a>`)
+        .join(", ");
+      return `<li><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(l.organisation)}">${esc(l.name)}</a>: ${links}</li>`;
+    };
+    const noPlan = items.filter((l) => !hasPlan.has(l.reference));
+    const noEvents = items.filter((l) => hasPlan.has(l.reference));
+    const group = (title, xs) => (xs.length ? `<h4 class="govuk-heading-s">${title} (${xs.length})</h4><ul class="govuk-list govuk-list--bullet">${xs.map(row).join("")}</ul>` : "");
+    return `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${items.length} LPAs showing signs of a new local plan but with no timetable events</span></summary><div class="govuk-details__text"><p class="govuk-body">Found by searching LPA websites for commencement notices, gateway assessments, plan timetables, calls for sites and similar. The search is automatic, so some pages may not be about a new plan, and some LPAs may be missed.</p>${group("No plan on the platform", noPlan)}${group("Plan on the platform but no timetable events", noEvents)}</div></details>`;
+  };
   return (
     `<h3 class="govuk-heading-m" id="providers-heading">LPAs providing timetable data</h3>` +
     `<p class="govuk-body">Of ${lpas.length} current LPAs, ${pct(own.length)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${pct(withEvents.length)} have dated timetable events, either for at least one of their plans or published by them for a plan that isn't in the ${esc(topic.dataset)} dataset or doesn't list them. This includes events that did not come from an endpoint of their own.</p>` +
@@ -807,7 +823,7 @@ const events = data["timetable-events"] ?? {};
     stat(pct(own.length), "of current LPAs publish their own timetable") +
     stat(ownNoEvents.length, "publish a timetable but have no events here") +
     stat(none.length, "have no timetable data") +
-    (noticed.length ? stat(`${noticeNoEvents.length} of ${noticed.length}`, "LPAs with a commencement notice have no timetable events") : "") +
+    (noticed.length ? stat(`${noticeNoEvents.length} of ${noticed.length}`, "LPAs showing signs of a new local plan on their website have no timetable events") : "") +
     (events.total
       ? stat(events.total.toLocaleString("en-GB"), "timetable events") +
         stat(evPct(events.endpoint), "events from LPAs publishing their own timetable")

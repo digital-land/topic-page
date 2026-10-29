@@ -108,7 +108,7 @@ def current_lpas():
     with open(path, newline="", encoding="utf-8") as f:
         organisations = {o["organisation"]: o for o in csv.DictReader(f)}
     providers, endpoints = timetable_providers(organisations)
-    notices = commencement_notices()
+    signals = plan_signals()
     lpas = [
         {
             "organisation": o["organisation"],
@@ -116,7 +116,7 @@ def current_lpas():
             "entity": o["entity"],
             "reference": o["local-planning-authority"],
             "timetable-endpoint": o["organisation"] in providers,
-            "commencement-notice": notices.get(o["local-planning-authority"], ""),
+            "signals": signals.get(o["local-planning-authority"], {}),
         }
         for o in organisations.values()
         if not o["end-date"]
@@ -125,20 +125,21 @@ def current_lpas():
     return lpas, endpoints, organisations, providers
 
 
-def commencement_notices():
-    """First commencement notice page found on each LPA website, by LPA reference.
+def plan_signals():
+    """First page found on each LPA website for each sign of work on a new plan.
 
-    Leaves out minerals and waste notices, as the page is about local plans.
+    Searched for by bin/commencement.py. Minerals and waste pages are left out,
+    as the signals are about local plans.
     """
     path = DATA / "commencement-notices.csv"
     if not path.exists():
         return {}
-    notices = {}
+    signals = {}
     with open(path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             if not re.search(r"minerals|waste", row["url"], re.I):
-                notices.setdefault(row["lpa"], row["url"])
-    return notices
+                signals.setdefault(row["lpa"], {}).setdefault(row["signal"], row["url"])
+    return signals
 
 
 def timetable_providers(organisations):
