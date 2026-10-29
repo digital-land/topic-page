@@ -470,13 +470,13 @@ function renderTimeline() {
     `<div class="chart-key">${groups.map((g) => `<span class="legend-item"><span class="swatch" style="background:${GROUPS[g].colour}"></span>${GROUPS[g].label}</span>`).join("")}</div>` +
     `<div class="chart-wrap">${svg}</div>` +
     renderJourney() +
+    `<div id="plan-timeline" aria-live="polite"></div>` +
+    `<p class="govuk-body-s">Select a plan on the map or in the search results to see its own timetable.</p>` +
     renderFlows() +
     renderTimetableProviders() +
     renderSubmissions() +
     renderIssues() +
-    renderMissingBoundaries() +
-    `<div id="plan-timeline" aria-live="polite"></div>` +
-    `<p class="govuk-body-s">Select a plan on the map or in the search results to see its own timetable.</p>`;
+    renderMissingBoundaries();
 }
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -883,6 +883,11 @@ document.addEventListener("click", (ev) => {
   const a = ev.target.closest("[data-timeline]");
   if (!a) return;
   showPlanTimeline(a.dataset.timeline);
+  // links elsewhere on the page jump to the plan's timetable; lines on the chart leave the page where it is
+  if (a.getAttribute("href")) {
+    ev.preventDefault();
+    $("plan-timeline").scrollIntoView();
+  }
 });
 
 function renderLinks() {
