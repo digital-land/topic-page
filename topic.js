@@ -536,7 +536,7 @@ function lpaStage(plans, stages, date) {
   return best?.stage;
 }
 
-function flowChart(title, refs, planFilter, description, marks = []) {
+function flowChart(title, refs, planFilter, description, marks = [], showPredicted = true) {
   const { actual, predicted } = planStages();
   const byLpa = {};
   data.plans.filter(planFilter).forEach((p) => lpasOf(p).filter((r) => refs.has(r)).forEach((r) => (byLpa[r] ??= []).push(p)));
@@ -545,7 +545,7 @@ function flowChart(title, refs, planFilter, description, marks = []) {
   const thisYear = new Date(TODAY).getUTCFullYear();
   // later years use predicted dates too, as far as the timetables go
   const lastPredicted = Math.max(thisYear, ...Object.values(predicted).flat().map(([d]) => +d.slice(0, 4)));
-  const years = Array.from({ length: Math.min(lastPredicted, thisYear + 6) - FLOW_FROM + 1 }, (_, i) => FLOW_FROM + i);
+  const years = Array.from({ length: Math.min(showPredicted ? lastPredicted : thisYear, thisYear + 6) - FLOW_FROM + 1 }, (_, i) => FLOW_FROM + i);
   const isFuture = (i) => years[i] > thisYear;
   const withPredicted = Object.fromEntries([...new Set([...Object.keys(actual), ...Object.keys(predicted)])].map((r) => [r, [...(actual[r] ?? []), ...(predicted[r] ?? [])]]));
   const at = years.map((y) => lpas.map((plans) => (y > thisYear ? lpaStage(plans, withPredicted, `${y}-12-31`) : lpaStage(plans, actual, y < thisYear ? `${y}-12-31` : TODAY))));
@@ -635,7 +635,8 @@ function renderFlows() {
       new Set(former.map((f) => f.properties.reference)),
       () => true,
       `Authorities that no longer exist, which were merged or replaced. Dashed lines mark the years they ended: ${Object.entries(ended).map(([y, c]) => `${c} in ${y}`).join(", ")}.`,
-      Object.entries(ended).map(([y, c]) => [+y, `${c} ended`])
+      Object.entries(ended).map(([y, c]) => [+y, `${c} ended`]),
+      false
     )
   );
 }
