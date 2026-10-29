@@ -78,7 +78,7 @@ const isAdopted = (p) => p["local-plan-process"] === "adopted" || Boolean(adopte
 const statusOf = (p) => STATUS_LABEL[p["local-plan-process"]] ?? p["local-plan-process"];
 const slugFromPath = () => new URLSearchParams(location.search).get("topic");
 
-let topic, data, planByRef, noticeAreas, state = { page: 1 };
+let topic, data, planByRef, noticeAreas, lpaRefs, timetableStage, state = { page: 1 };
 
 async function init() {
   const slug = slugFromPath();
@@ -97,6 +97,14 @@ async function init() {
   data.events = data.events.filter((e) => refs.has(e.plan));
   // LPA areas that have given notice of a new local plan, even if the plan isn't in the dataset yet
   noticeAreas = new Set((data.notices ?? []).map((n) => n.reference));
+  // LPA references, current and former, for telling them apart from other authority codes
+  lpaRefs = new Set([...data.boundaries.features.filter((f) => f.properties.lpa).map((f) => f.properties.reference), ...(data["current-lpas"] ?? []).map((l) => l.reference)]);
+  // the furthest stage each plan has actually reached in its timetable
+  timetableStage = {};
+  data.events.forEach((e) => {
+    if (e.stage != null && e.date && e.date <= TODAY && !e.suspect) timetableStage[e.plan] = Math.max(timetableStage[e.plan] ?? 0, e.stage);
+    else timetableStage[e.plan] ??= -1;
+  });
   document.title = `${topic.name} - Planning Data`;
   $("crumb").textContent = topic.name;
   $("heading").textContent = topic.name;
@@ -110,7 +118,16 @@ async function init() {
   setupSearch();
 }
 
-const lpasOf = (p) => (p.authorities || p.boundary || "").split(/[;-]/).filter(Boolean);
+// the LPAs a plan covers. Some plans list their authorities by another code, such as an ONS
+// code, so those are left out and the boundary used instead, when either gives LPA references.
+function lpasOf(p) {
+  const split = (s) => (s || "").split(/[;-]/).filter(Boolean);
+  for (const codes of [split(p.authorities), split(p.boundary)]) {
+    const lpas = codes.filter((r) => lpaRefs.has(r));
+    if (lpas.length) return lpas;
+  }
+  return split(p.authorities || p.boundary);
+}
 
 function renderStats() {
   const plans = data.plans;
@@ -164,7 +181,11 @@ function planState(p) {
   // actual, is under the new plan-making system
   if (p["new-system"]) return "new";
   if (isAdopted(p)) return "adopted";
-  return process ? "existing" : "unknown";
+  if (process) return "existing";
+  // no status, so go by the timetable: adopted if it has reached adoption, otherwise in progress
+  const stage = timetableStage[p.reference];
+  if (stage === undefined) return "unknown";
+  return stage === 4 ? "adopted" : "existing";
 }
 
 // the status of an area, in the order of the map key
@@ -190,9 +211,12 @@ function boundaryColour(plans, ref) {
   return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.withdrawn, unknown: COLOUR.notStated }[boundaryState(plans, ref)];
 }
 
+// a template record in use, still named as the template
+const templateTag = (p) => (p.template ? ` <strong class="govuk-tag govuk-tag--grey">Template not updated</strong>` : "");
+
 function planLine(p) {
   const hasEvents = data.events.some((e) => e.plan === p.reference);
-  return `<li><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a> (${esc(statusOf(p))})${
+  return `<li><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a>${templateTag(p)} (${esc(statusOf(p))})${
     hasEvents ? ` <a class="govuk-link" href="#timeline-heading" data-timeline="${esc(p.reference)}">timeline</a>` : ""
   }</li>`;
 }
@@ -243,8 +267,16 @@ function predecessors(features) {
 const boundaryName = (f) => f.properties.name + (f.properties.former ? " (former)" : "");
 
 function renderMap() {
+  // an LPA area takes every plan that covers it, including joint plans, as in the area
+  // covered chart; other areas, such as joint planning groups, take plans with their boundary
+  const byBoundary = {};
+  const byLpa = {};
+  data.plans.forEach((p) => {
+    (byBoundary[p.boundary] ??= []).push(p);
+    lpasOf(p).forEach((r) => (byLpa[r] ??= []).push(p));
+  });
   planByRef = {};
-  data.plans.forEach((p) => (planByRef[p.boundary] ??= []).push(p));
+  data.boundaries.features.forEach(({ properties: { reference, lpa } }) => (planByRef[reference] = (lpa ? byLpa : byBoundary)[reference] ?? []));
   // a fixed map: areas can be selected, but not panned or zoomed
   const map = L.map("map", {
     zoomControl: false,
@@ -306,7 +338,7 @@ function renderMap() {
           `<h3 class="govuk-heading-s">${esc(boundaryName(f))}</h3>` +
           (plans.length
             ? `<ul class="govuk-list">${plans.map(planLine).join("")}</ul>`
-            : `<p class="govuk-body">No ${topic.singular} linked to this boundary.</p>`)
+            : `<p class="govuk-body">No ${topic.singular} covers this area.</p>`)
         );
       })
       .join("");
@@ -426,7 +458,32 @@ function renderCoverage() {
     `${data.plans.length} ${topic.singular}s, by status. A plan with gateway events or a notice of intention to commence in its timetable is under the new system.`,
     defs.map(([s, colour]) => ({ label: planLabels[s], colour, value: plans[s] ?? 0, short: `${plans[s] ?? 0}`, text: `${plans[s] ?? 0} (${pct(plans[s] ?? 0, data.plans.length)})` }))
   );
-  $("coverage").innerHTML = chart1 + chart2 + chart3 + renderNotices();
+  $("coverage").innerHTML = chart1 + chart2 + chart3 + renderNotices() + renderTemplates();
+}
+
+// template records for a new local plan: unused ones, left out of the plans, and ones in use
+// that still have the template name
+function renderTemplates() {
+  const unused = data.templates ?? [];
+  const used = data.plans.filter((p) => p.template);
+  if (!unused.length && !used.length) return "";
+  const lpaNames = Object.fromEntries((data["current-lpas"] ?? []).map((l) => [l.reference, l.name]));
+  const name = (t) => lpasOf(t).map((r) => lpaNames[r] ?? r).join(", ") || t.reference;
+  const list = (title, items, item) =>
+    items.length
+      ? `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">${title}</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${items
+          .map((t) => ({ t, n: name(t) }))
+          .sort((a, b) => a.n.localeCompare(b.n))
+          .map(({ t, n }) => `<li>${item(t, n)}</li>`)
+          .join("")}</ul></div></details>`
+      : "";
+  const link = (t, text) => `<a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(t.entity)}">${esc(text)}</a>`;
+  return (
+    `<h3 class="govuk-heading-m" id="templates-heading">Template records for a new ${topic.singular}</h3>` +
+    `<p class="govuk-body">LPAs are given a template record, named "Emerging new ${topic.singular}", to fill in when they start a new ${topic.singular}. ${unused.length} have not been filled in yet: they have no status and no timetable, so they are left out of the ${topic.singular}s on this page. ${used.length} have a status or a timetable but still have the template name.</p>` +
+    list(`List the ${unused.length} template records not filled in`, unused, (t, n) => link(t, n)) +
+    list(`List the ${used.length} template records in use that still have the template name`, used, (t, n) => `${link(t, n)} (${esc(statusOf(t))})`)
+  );
 }
 
 // current LPAs that have given notice of intention to commence a new plan
@@ -1011,7 +1068,7 @@ function renderResults() {
     .map((p) => {
       const hasEvents = data.events.some((e) => e.plan === p.reference);
       const f = (l, v) => (v ? `<div><dt>${l}</dt><dd>${esc(v)}</dd></div>` : "");
-      return `<div class="result"><h3 class="govuk-heading-s"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a></h3><dl>${f("Status", statusOf(p))}${f("Authority", p["authority-name"])}${f("Adopted", fmt(adoptedDate(p)))}${f("Period", [p["period-start-date"], p["period-end-date"]].map((d) => d.slice(0, 4)).filter(Boolean).join("–"))}${f("Entry date", fmt(p["entry-date"]))}</dl>${
+      return `<div class="result"><h3 class="govuk-heading-s"><a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a>${templateTag(p)}</h3><dl>${f("Status", statusOf(p))}${f("Authority", p["authority-name"])}${f("Adopted", fmt(adoptedDate(p)))}${f("Period", [p["period-start-date"], p["period-end-date"]].map((d) => d.slice(0, 4)).filter(Boolean).join("–"))}${f("Entry date", fmt(p["entry-date"]))}</dl>${
         hasEvents ? `<a class="govuk-link" href="#timeline-heading" data-timeline="${esc(p.reference)}">View timeline</a>` : ""
       }</div>`;
     })

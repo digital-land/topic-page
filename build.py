@@ -72,6 +72,8 @@ NEW_SYSTEM_EVENTS = {
 }
 # notices for plans that aren't new local plans, when their plan isn't in the dataset
 NOT_LOCAL_PLAN = re.compile(r"mineral|waste|supplementary|\bm(?:w)?lp\b", re.I)
+# name of the template record LPAs copy for a new local plan, before filling it in
+TEMPLATE_NAME = "emerging new local plan"
 # repeated events further apart than this are taken to be a new plan cycle
 CYCLE_GAP_DAYS = 31
 
@@ -429,6 +431,21 @@ def build(slug, topic):
             timetable_plans.setdefault(event["plan"], set()).update(areas)
             events.append(event)
             event_orgs.append(entity)
+    # template records for a new local plan, left out of the plans until an LPA gives
+    # them a status or a timetable; ones in use but still named as the template are flagged
+    planned = {e["plan"] for e in events}
+    templates = []
+    for row in list(rows):
+        row["template"] = row["name"].strip().lower() == TEMPLATE_NAME
+        if (
+            row["template"]
+            and not row["local-plan-process"]
+            and row["reference"] not in planned
+        ):
+            rows.remove(row)
+            templates.append(
+                {k: row[k] for k in ("reference", "entity", "boundary", "authorities")}
+            )
     # only plans in the dataset are listed as having problems
     issues = [i for i in flag_reused_references(events) if i["plan"] in refs]
     # an LPA has timetable data if it, or a planning group it belongs to, published dated rows
@@ -460,6 +477,7 @@ def build(slug, topic):
         "timetable-events": event_counts if lpas else {},
         "lpa-submissions": submissions,
         "notices": lpa_notices(notices, lpas, organisations) if lpas else [],
+        "templates": templates,
         "timetable-plans": [
             {"reference": r, "authorities": ";".join(sorted(a))}
             for r, a in sorted(timetable_plans.items())
