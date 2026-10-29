@@ -374,9 +374,16 @@ function renderCoverage() {
     const s = boundaryState(planByRef[f.properties.reference] ?? []);
     areas[s] = (areas[s] ?? 0) + 1;
   });
+  const lpaCount = current.filter((f) => f.properties.lpa).length;
+  const groups = current.filter((f) => !f.properties.lpa && f.properties.reference.includes("-")).length;
+  const others = current.filter((f) => !f.properties.lpa && !f.properties.reference.includes("-")).map((f) => f.properties.name);
+  const lpas = data["current-lpas"] ?? [];
+  const explanation = lpas.length
+    ? ` These are ${lpaCount} LPA areas, ${groups} joint planning groups that cover several LPAs${others.length ? ` and ${others.length} other ${others.length === 1 ? "authority" : "authorities"}, ${others.join(", ")}` : ""}. The ${lpas.length} current LPAs are organisations, and ${lpas.length - lpaCount} of them have no area on the map.`
+    : "";
   const chart1 = stackedBar(
     "Active areas",
-    `${current.length} current areas on the map, by the status of their plans. These are the numbers in the map key.`,
+    `${current.length} current areas on the map, by the status of their plans. These are the numbers in the map key.${explanation}`,
     defs.map(([s, colour, label]) => ({ label, colour, value: areas[s] ?? 0, short: `${areas[s] ?? 0}`, text: `${areas[s] ?? 0} (${pct(areas[s] ?? 0, current.length)})` }))
   );
 
