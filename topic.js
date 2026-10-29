@@ -92,8 +92,8 @@ async function init() {
   }
   data = await (await fetch(`data/${slug}.json`, { cache: "no-cache" })).json();
   data.plans.sort((a, b) => a.name.localeCompare(b.name));
-  // only keep timetables linked to a plan in the dataset
-  const refs = new Set(data.plans.map((p) => p.reference));
+  // only keep timetables linked to a plan in the dataset, or credited to an LPA by the build
+  const refs = new Set([...data.plans, ...(data["timetable-plans"] ?? [])].map((p) => p.reference));
   data.events = data.events.filter((e) => refs.has(e.plan));
   // LPA areas that have given notice of a new local plan, even if the plan isn't in the dataset yet
   noticeAreas = new Set((data.notices ?? []).map((n) => n.reference));
@@ -498,8 +498,11 @@ function renderTimeline() {
     if ((y - y0) % 2 === 0) svg += `<text x="${x + bw / 2}" y="${h - 10}" text-anchor="middle">${y}</text>`;
   }
   svg += `<line class="axis" x1="${ml}" x2="${w}" y1="${h - mb}" y2="${h - mb}"/></svg>`;
+  const timetableOnly = data["timetable-plans"]?.length ?? 0;
   el.innerHTML =
-    `<p class="govuk-body">Number of plans reaching each milestone, by year, from the timetable dataset. ${data.events.length.toLocaleString("en-GB")} events across ${new Set(data.events.map((e) => e.plan)).size} plans.</p>` +
+    `<p class="govuk-body">Number of plans reaching each milestone, by year, from the timetable dataset. ${data.events.length.toLocaleString("en-GB")} events across ${new Set(data.events.map((e) => e.plan)).size} plans${
+      timetableOnly ? `, including ${timetableOnly} timetables for plans that aren't in the ${esc(topic.dataset)} dataset` : ""
+    }.</p>` +
     `<div class="chart-key">${groups.map((g) => `<span class="legend-item"><span class="swatch" style="background:${GROUPS[g].colour}"></span>${GROUPS[g].label}</span>`).join("")}</div>` +
     `<div class="chart-wrap">${svg}</div>` +
     renderJourney() +
@@ -517,9 +520,11 @@ const isPredicted = (e) => Boolean(e.earliest) || e.event.startsWith("estimated-
 
 function renderJourney() {
   const byPlan = {};
+  // one line per plan in the dataset, so each can show its own timetable
+  const inDataset = new Set(data.plans.map((p) => p.reference));
   data.events.forEach((e) => {
     const stage = e.stage;
-    if (stage == null || !e.date || e.suspect) return;
+    if (stage == null || !e.date || e.suspect || !inDataset.has(e.plan)) return;
     const stages = (byPlan[e.plan] ??= {});
     if (!stages[stage] || e.date < stages[stage].date) stages[stage] = { date: e.date, predicted: isPredicted(e) };
   });
@@ -665,7 +670,7 @@ function lpaStage(plans, stages, date) {
 function flowChart(title, refs, planFilter, description, marks = [], showPredicted = true) {
   const { actual, predicted } = planStages();
   const byLpa = {};
-  data.plans.filter(planFilter).forEach((p) => lpasOf(p).filter((r) => refs.has(r)).forEach((r) => (byLpa[r] ??= []).push(p)));
+  [...data.plans, ...(data["timetable-plans"] ?? [])].filter(planFilter).forEach((p) => lpasOf(p).filter((r) => refs.has(r)).forEach((r) => (byLpa[r] ??= []).push(p)));
   const lpas = Object.values(byLpa);
   if (!lpas.length) return "";
   const thisYear = new Date(TODAY).getUTCFullYear();
@@ -753,7 +758,7 @@ function renderFlows() {
   former.forEach((f) => (ended[f.properties["end-date"].slice(0, 4)] = (ended[f.properties["end-date"].slice(0, 4)] ?? 0) + 1));
   return (
     `<h3 class="govuk-heading-m" id="flows-heading">How LPAs move between plan stages</h3>` +
-    `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. Plans with no timetable events are left out. The grey years to the right are predicted from timetable dates in the future.</p>` +
+    `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. Plans with no timetable events are left out. A timetable for a plan that isn't in the ${esc(topic.dataset)} dataset counts for the LPA that published it. The grey years to the right are predicted from timetable dates in the future.</p>` +
     flowChart("Plans covering one LPA", current, (p) => lpasOf(p).length === 1, "Current LPAs, by the plans that cover only that LPA.") +
     flowChart("Joint plans", current, (p) => lpasOf(p).length > 1, "Current LPAs, by the plans they share with other LPAs. Each LPA is counted once, however many LPAs share the plan.") +
     flowChart(
@@ -770,7 +775,8 @@ function renderFlows() {
 function renderTimetableProviders() {
   const lpas = data["current-lpas"];
   if (!lpas?.length) return "";
-  const planRefs = new Set(data.events.map((e) => e.plan));
+  const inDataset = new Set(data.plans.map((p) => p.reference));
+  const planRefs = new Set(data.events.map((e) => e.plan).filter((r) => inDataset.has(r)));
   const covered = new Set();
   data.plans.filter((p) => planRefs.has(p.reference)).forEach((p) => lpasOf(p).forEach((r) => covered.add(r)));
   const pct = (n) => `${n} (${Math.round((n / lpas.length) * 100)}%)`;

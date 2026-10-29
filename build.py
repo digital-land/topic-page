@@ -362,16 +362,18 @@ def build(slug, topic):
         row["authorities"] = row.pop(topic["authorityField"])
         row["authority-name"] = names.get(row["boundary"], "")
         rows.append(row)
+    refs = {p["reference"] for p in plans}
     events = []
     event_orgs = []
     notices = []
     # organisations with dated timetable rows, including for plans not in the plan dataset
     publishers = set()
+    # dated rows for plans not in the plan dataset, with who published them
+    unlinked = []
     today = date.today().isoformat()
     if topic["timetable"]:
         # local-plan-timetable links on local-plan; the shared plan-timetable on plan
         key = "plan" if topic["timetable"] == "plan-timetable" else topic["dataset"]
-        refs = {p["reference"] for p in plans}
         for t in fetch(topic["timetable"]):
             if is_notice(t[f"{key}-event"]):
                 t[f"{key}-event"] = NOTICE_EVENT
@@ -394,6 +396,8 @@ def build(slug, topic):
                 event["plan"] in refs or not NOT_LOCAL_PLAN.search(event["plan"])
             ):
                 publishers.add(t["organisation-entity"])
+                if event["plan"] not in refs:
+                    unlinked.append((event, t["organisation-entity"]))
             # notices already given, including for new plans not yet in the plan dataset
             if (
                 event["event"] == NOTICE_EVENT
@@ -412,10 +416,21 @@ def build(slug, topic):
     new_system = {e["plan"] for e in events if e["event"] in NEW_SYSTEM_EVENTS}
     for row in rows:
         row["new-system"] = row["reference"] in new_system
-    issues = flag_reused_references(events)
     lpas, endpoints, organisations, providers = (
         current_lpas() if topic.get("currentLpas") else ([], 0, {}, set())
     )
+    # timetables for plans not in the plan dataset, credited to the current LPAs that
+    # published them, so they count in the timeline charts but not as plans
+    lpa_refs = {l["organisation"]: l["reference"] for l in lpas if l["reference"]}
+    timetable_plans = {}
+    for event, entity in unlinked:
+        areas = {lpa_refs[o] for o in owners(entity, organisations) if o in lpa_refs}
+        if areas:
+            timetable_plans.setdefault(event["plan"], set()).update(areas)
+            events.append(event)
+            event_orgs.append(entity)
+    # only plans in the dataset are listed as having problems
+    issues = [i for i in flag_reused_references(events) if i["plan"] in refs]
     # an LPA has timetable data if it, or a planning group it belongs to, published dated rows
     with_data = {o for e in publishers for o in owners(e, organisations)}
     for l in lpas:
@@ -445,6 +460,10 @@ def build(slug, topic):
         "timetable-events": event_counts if lpas else {},
         "lpa-submissions": submissions,
         "notices": lpa_notices(notices, lpas, organisations) if lpas else [],
+        "timetable-plans": [
+            {"reference": r, "authorities": ";".join(sorted(a))}
+            for r, a in sorted(timetable_plans.items())
+        ],
         "counts": {
             "plans": len(rows),
             "boundaries": len(boundaries),
