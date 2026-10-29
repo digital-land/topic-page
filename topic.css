@@ -59,3 +59,5 @@ body, .govuk-template__body, [class*="govuk-"], input, button, .chart text {
 .lane-label { font-size: 12px; fill: #1d70b8; text-decoration: underline; }
 /* a greyscale basemap, so the coloured areas stand out */
 #map .leaflet-tile-pane { filter: grayscale(1); }
+.row--missing td { background: #fff7bf; }
+.swatch-missing { display: inline-block; width: 1em; height: 1em; background: #fff7bf; border: 1px solid #b1b4b6; vertical-align: middle; }
