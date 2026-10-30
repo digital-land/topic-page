@@ -60,7 +60,7 @@ const EVENT_GROUP = {
   adopted: "adopted",
   "plan-withdrawn": "withdrawn",
 };
-const STAGES = ["Early consultation", "Publication", "Submitted", "Examination concluded", "Adopted", "Outdated"];
+const STAGES = ["Early consultation", "Publication", "Submitted", "Examination concluded", "Adopted"];
 const STATUS_LABEL = {
   adopted: "Adopted",
   "regulation-18": "Regulation 18 consultation",
@@ -659,16 +659,7 @@ function renderJourney() {
         .sort((a, b) => a.stage - b.stage),
       outcome: withdrawn.has(ref) ? "withdrawn" : st[4] ? "adopted" : "progress",
     }))
-    .filter((j) => j.points.length >= 2)
-    // an adopted plan becomes outdated after a number of years, a prediction until then
-    .map((j) => {
-      const adopted = j.points.find((p) => p.stage === 4);
-      if (adopted) {
-        const date = addYears(adopted.date, OUTDATED_YEARS);
-        j.points.push({ stage: 5, t: new Date(date).getTime(), date, predicted: adopted.predicted || date > TODAY });
-      }
-      return j;
-    });
+    .filter((j) => j.points.length >= 2);
   if (!journeys.length) return "";
   const colour = { adopted: COLOUR.adopted, progress: COLOUR.progress, withdrawn: COLOUR.withdrawn };
   const label = { adopted: "Adopted", progress: "In progress", withdrawn: "Withdrawn" };
@@ -693,7 +684,7 @@ function renderJourney() {
       const future = j.points
         .map((p, i) => (p.predicted && i ? `${xy(j.points[i - 1])} ${xy(p)}` : ""))
         .filter(Boolean);
-      const [a, b] = [j.points[0], j.points.findLast((p) => p.stage < 5)];
+      const [a, b] = [j.points[0], j.points.at(-1)];
       const dur = ((days(a.t, b.t) / 365.25)).toFixed(1);
       svg += `<polyline class="journey" data-timeline="${esc(j.ref)}" points="${pts}" fill="none" stroke="${colour[j.outcome]}"><title>${esc(names[j.ref] ?? j.ref)}: ${esc(STAGES[a.stage])} to ${esc(STAGES[b.stage])} in ${dur} years (${label[j.outcome].toLowerCase()})</title></polyline>`;
       future.forEach((f) => (svg += `<polyline class="journey journey--predicted" data-timeline="${esc(j.ref)}" points="${f}" fill="none"><title>${esc(names[j.ref] ?? j.ref)}: predicted dates</title></polyline>`));
@@ -701,14 +692,14 @@ function renderJourney() {
   svg += `</svg>`;
   const durations = journeys
     .filter((j) => j.outcome === "adopted" && j.points[0].stage < 3)
-    .map((j) => days(j.points[0].t, j.points.find((p) => p.stage === 4).t) / 365.25)
+    .map((j) => days(j.points[0].t, j.points.at(-1).t) / 365.25)
     .sort((a, b) => a - b);
   const median = durations.length ? durations[Math.floor(durations.length / 2)].toFixed(1) : null;
   return (
     `<h3 class="govuk-heading-m" id="progress-heading">Progress through the stages</h3>` +
     `<p class="govuk-body">One line per plan, from the first date recorded at each stage. ${journeys.length} plans have dates for at least two stages.${
       median ? ` For the ${durations.length} adopted plans with early consultation or publication dates, the median time from first recorded stage to adoption is ${median} years.` : ""
-    } A plan becomes outdated ${OUTDATED_YEARS} years after it was adopted. Select a line to see the plan's timetable.</p>` +
+    } Select a line to see the plan's timetable.</p>` +
     `<div class="chart-key">${Object.keys(colour).map((k) => `<span class="legend-item"><span class="swatch" style="background:${colour[k]}"></span>${label[k]}</span>`).join("")}<span class="legend-item"><span class="swatch swatch--predicted"></span>Predicted</span></div>` +
     `<div class="chart-wrap">${svg}</div>` +
     renderAdoptionTimes(journeys, names)
