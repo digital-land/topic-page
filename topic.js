@@ -760,9 +760,9 @@ function renderMissingBoundaries() {
   if (!missing.length) return "";
   const noLpa = lpasWithoutBoundary();
   const lpaTable = noLpa.length
-    ? `<p class="govuk-body">${noLpa.length} of the ${data["current-lpas"].length} current LPAs have no boundary:</p><ul class="govuk-list govuk-list--bullet">${noLpa
+    ? `<p class="govuk-body">${noLpa.length} of the ${data["current-lpas"].length} current LPAs have no boundary.</p><details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${noLpa.length} LPAs</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${noLpa
         .map((l) => `<li><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(l.organisation)}">${esc(l.name)}</a> (${l.reference ? `${esc(l.reference)} not in boundary data` : "no LPA area in the organisation data"})</li>`)
-        .join("")}</ul>`
+        .join("")}</ul></div></details>`
     : "";
   const rows = missing
     .sort((a, b) => a.name.localeCompare(b.name))
