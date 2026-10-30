@@ -696,13 +696,13 @@ function renderJourney() {
     .sort((a, b) => a - b);
   const median = durations.length ? durations[Math.floor(durations.length / 2)].toFixed(1) : null;
   return (
+    renderAdoptionTimes(journeys, names) +
     `<h3 class="govuk-heading-m" id="progress-heading">Progress through the stages</h3>` +
     `<p class="govuk-body">One line per plan, from the first date recorded at each stage. ${journeys.length} plans have dates for at least two stages.${
       median ? ` For the ${durations.length} adopted plans with early consultation or publication dates, the median time from first recorded stage to adoption is ${median} years.` : ""
     } Select a line to see the plan's timetable.</p>` +
     `<div class="chart-key">${Object.keys(colour).map((k) => `<span class="legend-item"><span class="swatch" style="background:${colour[k]}"></span>${label[k]}</span>`).join("")}<span class="legend-item"><span class="swatch swatch--predicted"></span>Predicted</span></div>` +
-    `<div class="chart-wrap">${svg}</div>` +
-    renderAdoptionTimes(journeys, names)
+    `<div class="chart-wrap">${svg}</div>`
   );
 }
 
