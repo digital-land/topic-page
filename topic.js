@@ -979,6 +979,9 @@ function renderTimetableProviders() {
   const noticeNoEvents = noticed.filter((l) => !hasEvents(l));
 const events = data["timetable-events"] ?? {};
   const evPct = (n) => `${n.toLocaleString("en-GB")} (${Math.round((n / events.total) * 100)}%)`;
+  // the platform's entity search for the timetable dataset, for the given LPAs
+  const timetableSearch = (orgs = []) =>
+    `https://www.planning.data.gov.uk/entity/?dataset=${esc(topic.timetable)}${quality ? `&quality=${quality}` : ""}${orgs.map((l) => `&organisation_entity=${esc(l.entity)}`).join("")}`;
   const stat = (n, l) => `<div class="stat"><strong>${n}</strong><span>${l}</span></div>`;
   // numbers open the list of LPAs they count
   const lpaLink = (text, id, items) => (items.length ? `<a class="govuk-link" href="#${id}" data-open="${id}">${text}</a>` : text);
@@ -1036,8 +1039,8 @@ const events = data["timetable-events"] ?? {};
     stat(lpaLink(none.length, "no-timetable", none), "have no timetable data") +
     (noticed.length ? stat(lpaLink(`${noticeNoEvents.length} (${Math.round((noticeNoEvents.length / noticed.length) * 100)}%)`, "notice-no-events", noticeNoEvents), `of the ${noticed.length} LPAs with signs of a new local plan on their website are missing timetable events`) : "") +
     (events.total
-      ? stat(events.total.toLocaleString("en-GB"), "timetable events") +
-        stat(lpaLink(evPct(events.endpoint), "lpas-own-timetable", own), "events from LPAs publishing their own timetable")
+      ? stat(`<a class="govuk-link" href="${timetableSearch()}">${events.total.toLocaleString("en-GB")}</a>`, "timetable events") +
+        stat(`<a class="govuk-link" href="${timetableSearch(own)}">${evPct(events.endpoint)}</a>`, "events from LPAs publishing their own timetable")
       : "") +
     `</div>` +
     list(`List the ${withEvents.length} current LPAs with a timetable`, withEvents, "lpas-with-timetable") +
