@@ -148,16 +148,29 @@ function lpasOf(p) {
   return split(p.authorities || p.boundary);
 }
 
+// lists of plans that the search section can show, opened from the numbers on the page
+const planLists = {};
+function listLink(text, label, plans) {
+  // by entity, as several plans can share a reference
+  const refs = new Set(plans.map((p) => p.entity));
+  if (!refs.size) return text;
+  const id = Object.keys(planLists).length;
+  planLists[id] = { label, refs };
+  return `<a class="govuk-link" href="#search" data-list="${id}">${text}</a>`;
+}
+
 function renderStats() {
   const plans = data.plans;
   const adopted = plans.filter(isAdopted).length;
   const plural = `${topic.singular}s`;
   const features = data.boundaries.features;
   const onMap = plans.filter((p) => features.some((f) => f.properties.reference === p.boundary));
+  const noBoundary = plans.filter((p) => !onMap.includes(p));
+  // the label is HTML, so the numbers in it can be links
   const stats = [
-    [plans.length, `${plural} on the platform`],
-    [adopted, "adopted"],
-    [onMap.length, `${plural} with a boundary, ${plans.length - onMap.length} without`],
+    [plans.length, `${esc(plural)} on the platform`, plans, `all ${plural}`],
+    [adopted, "adopted", plans.filter(isAdopted), `adopted ${plural}`],
+    [onMap.length, `${esc(plural)} with a boundary, ${listLink(noBoundary.length, `${plural} with no boundary`, noBoundary)} without`, onMap, `${plural} with a boundary`],
   ];
   if (data["current-lpas"].length) {
     // a plan can cover several LPAs, either as a joint plan or through a joint planning group
@@ -174,19 +187,24 @@ function renderStats() {
       const n = lpas.filter((l) => set.has(l.reference)).length;
       return `${n} (${Math.round((n / lpas.length) * 100)}%)`;
     };
+    const current = new Set(lpas.map((l) => l.reference));
+    const coversCurrent = (p) => lpasOf(p).some((r) => current.has(r));
     stats.push(
       [lpas.length, "current local planning authorities (LPAs)"],
-      [share(withPlan), `of current LPAs covered by a ${topic.singular}`],
-      [share(withAdopted), `of current LPAs covered by an adopted ${topic.singular}`],
-      [share(noticeAreas), `of current LPAs have given notice of intention to commence a new ${topic.singular}`]
+      [share(withPlan), `of current LPAs covered by a ${esc(topic.singular)}`, plans.filter(coversCurrent), `${plural} covering current LPAs`],
+      [share(withAdopted), `of current LPAs covered by an adopted ${esc(topic.singular)}`, plans.filter((p) => isAdopted(p) && coversCurrent(p)), `adopted ${plural} covering current LPAs`],
+      [share(noticeAreas), `of current LPAs have given notice of intention to commence a new ${esc(topic.singular)}`]
     );
   } else {
     const current = features.filter((f) => !(f.properties["end-date"] && f.properties["end-date"] <= TODAY)).length;
     stats.push([current, "current authorities with a boundary"]);
   }
-  if (topic.expected) stats.push([topic.expected, topic.expectedNote + " in England"]);
+  if (topic.expected) stats.push([topic.expected, esc(topic.expectedNote + " in England")]);
   $("stats").innerHTML = stats
-    .map(([n, l]) => `<div class="stat"><strong>${typeof n === "number" ? n.toLocaleString("en-GB") : n}</strong><span>${esc(l)}</span></div>`)
+    .map(([n, l, list, label]) => {
+      const text = typeof n === "number" ? n.toLocaleString("en-GB") : n;
+      return `<div class="stat"><strong>${list ? listLink(text, label, list) : text}</strong><span>${l}</span></div>`;
+    })
     .join("");
 }
 
@@ -229,6 +247,17 @@ function boundaryState(plans, ref) {
 
 function boundaryColour(plans, ref) {
   return { new: COLOUR.newPlan, existing: COLOUR.progress, adopted: COLOUR.adopted, noAdopted: COLOUR.withdrawn, unknown: COLOUR.notStated }[boundaryState(plans, ref)];
+}
+
+// the plans in the given state that are in areas with that state
+function plansInState(s, features) {
+  const out = [];
+  features.forEach((f) => {
+    const ref = f.properties.reference;
+    const plans = planByRef[ref] ?? [];
+    if (boundaryState(plans, ref) === s) out.push(...plans.filter((p) => planState(p) === s));
+  });
+  return out;
 }
 
 // a template record in use, still named as the template
@@ -378,9 +407,9 @@ function renderMap() {
     });
   $("legend").innerHTML =
     stateDefs()
-      .map(([s, c, l]) => `<div class="legend-item"><span class="swatch"${c ? ` style="background:${c}"` : ""}></span>${l}: <strong>${counts[s] ?? 0}</strong></div>`)
+      .map(([s, c, l]) => `<div class="legend-item"><span class="swatch"${c ? ` style="background:${c}"` : ""}></span>${l}: <strong>${listLink(counts[s] ?? 0, l, plansInState(s, features.filter((f) => !f.properties.former)))}</strong></div>`)
       .join("") +
-    `<p class="govuk-body-s">${data.events.length ? `<a class="govuk-link" href="#boundaries-heading" data-open="missing-boundaries">${noBoundary}</a>` : noBoundary} of ${data.plans.length} plans have no boundary on the map. Select an area to see its plans.</p>`;
+    `<p class="govuk-body-s">${listLink(noBoundary, `${topic.singular}s with no boundary`, plansWithoutBoundary())} of ${data.plans.length} plans have ${data.events.length ? `<a class="govuk-link" href="#boundaries-heading" data-open="missing-boundaries">no boundary</a>` : "no boundary"} on the map. Select an area to see its plans.</p>`;
   document.querySelector(".map-panel__close").addEventListener("click", () => toggleMapPanel(false));
   document.querySelector(".map-panel__open").addEventListener("click", () => toggleMapPanel(true));
 }
@@ -410,7 +439,7 @@ function stackedBar(title, intro, segments) {
   });
   svg += `</svg>`;
   const key = segments
-    .map((s) => `<div class="legend-item"><span class="swatch"${s.colour ? ` style="background:${s.colour}"` : ""}></span>${esc(s.label)}: <strong>${esc(s.text)}</strong></div>`)
+    .map((s) => `<div class="legend-item"><span class="swatch"${s.colour ? ` style="background:${s.colour}"` : ""}></span>${esc(s.label)}: <strong>${listLink(esc(s.text), s.label, s.plans ?? [])}</strong></div>`)
     .join("");
   return `<h3 class="govuk-heading-m" id="${slugify(title)}">${esc(title)}</h3><p class="govuk-body">${intro}</p><div class="chart-wrap">${svg}</div><div class="chart-key">${key}</div>`;
 }
@@ -442,16 +471,19 @@ function renderCoverage() {
   const chart1 = stackedBar(
     "Active areas",
     `${current.length} current areas on the map, by the status of their plans. These are the numbers in the map key.${explanation}`,
-    defs.map(([s, colour, label]) => ({ label, colour, value: areas[s] ?? 0, short: `${areas[s] ?? 0}`, text: `${areas[s] ?? 0} (${pct(areas[s] ?? 0, current.length)})` }))
+    defs.map(([s, colour, label]) => ({ label, colour, plans: plansInState(s, current), value: areas[s] ?? 0, short: `${areas[s] ?? 0}`, text: `${areas[s] ?? 0} (${pct(areas[s] ?? 0, current.length)})` }))
   );
 
   // 2. the same, weighted by the size of each LPA. Joint planning groups overlap their LPAs, so only LPAs are used.
   const lpaAreas = current.filter((f) => f.properties.lpa);
   const size = {};
+  const sizePlans = {};
   let totalSize = 0;
   lpaAreas.forEach((f) => {
     const ref = f.properties.reference;
-    const s = boundaryState(data.plans.filter((p) => lpasOf(p).includes(ref)), ref);
+    const covering = data.plans.filter((p) => lpasOf(p).includes(ref));
+    const s = boundaryState(covering, ref);
+    (sizePlans[s] ??= []).push(...covering.filter((p) => planState(p) === s));
     const km = areaKm2(f);
     size[s] = (size[s] ?? 0) + km;
     totalSize += km;
@@ -460,7 +492,7 @@ function renderCoverage() {
   const chart2 = stackedBar(
     "Area covered",
     `${lpaAreas.length} current LPAs, by the area they cover (about ${km(totalSize)}) and the status of the plans that cover them, including joint plans. Areas are approximate.`,
-    defs.map(([s, colour, label]) => ({ label, colour, value: size[s] ?? 0, short: pct(size[s] ?? 0, totalSize), text: `${km(size[s] ?? 0)} (${pct(size[s] ?? 0, totalSize)})` }))
+    defs.map(([s, colour, label]) => ({ label, colour, plans: sizePlans[s] ?? [], value: size[s] ?? 0, short: pct(size[s] ?? 0, totalSize), text: `${km(size[s] ?? 0)} (${pct(size[s] ?? 0, totalSize)})` }))
   );
 
   // 3. every plan on the platform
@@ -476,7 +508,7 @@ function renderCoverage() {
   const chart3 = stackedBar(
     "Plans on the platform",
     `${data.plans.length} ${topic.singular}s, by status. A plan with gateway events or a notice of intention to commence in its timetable is under the new system.`,
-    defs.map(([s, colour]) => ({ label: planLabels[s], colour, value: plans[s] ?? 0, short: `${plans[s] ?? 0}`, text: `${plans[s] ?? 0} (${pct(plans[s] ?? 0, data.plans.length)})` }))
+    defs.map(([s, colour]) => ({ label: planLabels[s], colour, plans: data.plans.filter((p) => planState(p) === s), value: plans[s] ?? 0, short: `${plans[s] ?? 0}`, text: `${plans[s] ?? 0} (${pct(plans[s] ?? 0, data.plans.length)})` }))
   );
   $("coverage").innerHTML = chart1 + chart2 + chart3 + renderNotices() + renderTemplates();
 }
@@ -1104,6 +1136,24 @@ function showPlanTimeline(ref) {
 document.addEventListener("click", (ev) => {
   const open = ev.target.closest("[data-open]");
   if (open) $(open.dataset.open).open = true;
+  const list = ev.target.closest("[data-list]");
+  if (list) {
+    ev.preventDefault();
+    // the form has a button with the id "reset", which hides its reset method
+    HTMLFormElement.prototype.reset.call($("filters"));
+    state.list = planLists[list.dataset.list];
+    state.page = 1;
+    renderResults();
+    $("search").scrollIntoView();
+    return;
+  }
+  if (ev.target.closest("[data-clear-list]")) {
+    ev.preventDefault();
+    state.list = null;
+    state.page = 1;
+    renderResults();
+    return;
+  }
   const a = ev.target.closest("[data-timeline]");
   if (!a) return;
   showPlanTimeline(a.dataset.timeline);
@@ -1155,7 +1205,7 @@ function setupSearch() {
     state.page = 1;
     renderResults();
   });
-  $("filters").addEventListener("reset", () => setTimeout(() => ((state.page = 1), renderResults())));
+  $("filters").addEventListener("reset", () => ((state.list = null), setTimeout(() => ((state.page = 1), renderResults()))));
   $("filters").addEventListener("submit", (e) => e.preventDefault());
   renderResults();
 }
@@ -1167,6 +1217,7 @@ function filtered() {
   const [d, m, y] = ["ed-day", "ed-month", "ed-year"].map((i) => $(i).value.trim());
   return data.plans.filter((p) => {
     if (q && !`${p.name} ${p["authority-name"]} ${p.reference}`.toLowerCase().includes(q)) return false;
+    if (state.list && !state.list.refs.has(p.entity)) return false;
     if (st.length && !st.includes(p["local-plan-process"])) return false;
     if (pe.length && !pe.includes(decade(p))) return false;
     const [py, pm, pd] = p["entry-date"].split("-");
@@ -1181,7 +1232,9 @@ function renderResults() {
   const rows = filtered();
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   state.page = Math.min(state.page, pages);
-  $("count").textContent = `${rows.length.toLocaleString("en-GB")} ${rows.length === 1 ? topic.singular : topic.singular + "s"} found`;
+  $("count").innerHTML =
+    `${rows.length.toLocaleString("en-GB")} ${rows.length === 1 ? topic.singular : topic.singular + "s"} found` +
+    (state.list ? ` in the list of ${esc(state.list.label)}. <a class="govuk-link" href="#search" data-clear-list>Show all</a>` : "");
   $("results").innerHTML = rows
     .slice((state.page - 1) * PAGE_SIZE, state.page * PAGE_SIZE)
     .map((p) => {
