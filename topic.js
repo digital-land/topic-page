@@ -778,7 +778,7 @@ function renderMissingBoundaries() {
   const noLpa = lpasWithoutBoundary();
   const lpaSentence = noLpa.length ? ` ${noLpa.length} of the ${data["current-lpas"].length} current LPAs have no boundary.` : "";
   const lpaTable = noLpa.length
-    ? `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${noLpa.length} LPAs</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${noLpa
+    ? `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${noLpa.length} current LPAs with no boundary</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${noLpa
         .map((l) => `<li><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(l.organisation)}">${esc(l.name)}</a> (${l.reference ? `${esc(l.reference)} not in boundary data` : "no LPA area in the organisation data"})</li>`)
         .join("")}</ul></div></details>`
     : "";
@@ -794,7 +794,7 @@ function renderMissingBoundaries() {
     `<h3 class="govuk-heading-m" id="boundaries-heading">Plans with missing boundaries</h3>` +
     `<p class="govuk-body">${missing.length} of ${data.plans.length} plans can't be shown on the map, because they have no boundary or the boundary isn't in the boundary data.${lpaSentence}</p>` +
     lpaTable +
-    `<details class="govuk-details" id="missing-boundaries"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${missing.length} plans</span></summary><div class="govuk-details__text">` +
+    `<details class="govuk-details" id="missing-boundaries"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${missing.length} plans with no boundary on the map</span></summary><div class="govuk-details__text">` +
     `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row">${th("Plan")}${th("LPAs")}${th("Status")}${th("Problem")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`
   );
 }
