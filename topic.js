@@ -556,7 +556,7 @@ function renderTimeline() {
     const y = addYears(date, OUTDATED_YEARS).slice(0, 4);
     ((counts[y] ??= {}).outdated ??= new Set()).add(plan);
   });
-  const years = Object.keys(counts).map(Number).filter((y) => y >= 2004);
+  const years = Object.keys(counts).map(Number).filter((y) => y >= 2004 && y <= LAST_YEAR);
   const [y0, y1] = [Math.min(...years), Math.max(...years)];
   const groups = Object.keys(GROUPS);
   const totals = (y) => groups.reduce((s, g) => s + (counts[y]?.[g]?.size ?? 0), 0);
@@ -602,6 +602,8 @@ function renderTimeline() {
 }
 
 const TODAY = new Date().toISOString().slice(0, 10);
+// charts stop this many years from now
+const LAST_YEAR = new Date(TODAY).getUTCFullYear() + 5;
 const isPredicted = (e) => Boolean(e.earliest) || e.event.startsWith("estimated-") || e.date > TODAY;
 
 // dot plot of the time from publication to adoption, one column per year of adoption
@@ -609,7 +611,7 @@ function renderAdoptionTimes(journeys, names) {
   const dots = journeys
     .filter((j) => j.outcome === "adopted")
     .map((j) => ({ ref: j.ref, pub: j.points.find((p) => p.stage === 1), adopted: j.points.find((p) => p.stage === 4) }))
-    .filter((d) => d.pub && d.adopted && d.adopted.t >= d.pub.t)
+    .filter((d) => d.pub && d.adopted && d.adopted.t >= d.pub.t && d.adopted.date.slice(0, 4) <= LAST_YEAR)
     .map((d) => ({ ...d, predicted: d.pub.predicted || d.adopted.predicted, year: new Date(d.adopted.t).getUTCFullYear(), years: (d.adopted.t - d.pub.t) / 864e5 / 365.25 }));
   if (!dots.length) return "";
   const [y0, y1] = [Math.min(...dots.map((d) => d.year)), Math.max(...dots.map((d) => d.year))];
@@ -655,7 +657,7 @@ function renderJourney() {
       ref,
       points: Object.entries(st)
         .map(([stage, v]) => ({ stage: +stage, t: new Date(v.date).getTime(), date: v.date, predicted: v.predicted }))
-        .filter((p) => p.t >= Date.UTC(2004, 0, 1))
+        .filter((p) => p.t >= Date.UTC(2004, 0, 1) && p.date.slice(0, 4) <= LAST_YEAR)
         .sort((a, b) => a.stage - b.stage),
       outcome: withdrawn.has(ref) ? "withdrawn" : st[4] ? "adopted" : "progress",
     }))
@@ -804,7 +806,7 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   const thisYear = new Date(TODAY).getUTCFullYear();
   // later years use predicted dates too, as far as the timetables go
   const lastPredicted = Math.max(thisYear, ...Object.values(predicted).flat().map(([d]) => +d.slice(0, 4)));
-  const years = Array.from({ length: Math.min(showPredicted ? lastPredicted : thisYear, thisYear + 6) - FLOW_FROM + 1 }, (_, i) => FLOW_FROM + i);
+  const years = Array.from({ length: Math.min(showPredicted ? lastPredicted : thisYear, LAST_YEAR) - FLOW_FROM + 1 }, (_, i) => FLOW_FROM + i);
   const isFuture = (i) => years[i] > thisYear;
   const withPredicted = Object.fromEntries([...new Set([...Object.keys(actual), ...Object.keys(predicted)])].map((r) => [r, [...(actual[r] ?? []), ...(predicted[r] ?? [])]]));
   const at = years.map((y) => lpas.map((plans, li) => (ends[lpaRefs[li]] && y > +ends[lpaRefs[li]].slice(0, 4) ? undefined : y > thisYear ? lpaStage(plans, withPredicted, `${y}-12-31`) : lpaStage(plans, actual, y < thisYear ? `${y}-12-31` : TODAY))));
