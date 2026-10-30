@@ -586,6 +586,39 @@ function renderTimeline() {
 const TODAY = new Date().toISOString().slice(0, 10);
 const isPredicted = (e) => Boolean(e.earliest) || e.event.startsWith("estimated-") || e.date > TODAY;
 
+// dot plot of the time from publication to adoption, one column per year of adoption
+function renderAdoptionTimes(journeys, names) {
+  const dots = journeys
+    .filter((j) => j.outcome === "adopted")
+    .map((j) => ({ ref: j.ref, pub: j.points.find((p) => p.stage === 1 && !p.predicted), adopted: j.points.find((p) => p.stage === 4 && !p.predicted) }))
+    .filter((d) => d.pub && d.adopted && d.adopted.t >= d.pub.t)
+    .map((d) => ({ ...d, year: new Date(d.adopted.t).getUTCFullYear(), years: (d.adopted.t - d.pub.t) / 864e5 / 365.25 }));
+  if (!dots.length) return "";
+  const [y0, y1] = [Math.min(...dots.map((d) => d.year)), Math.max(...dots.map((d) => d.year))];
+  const top = Math.ceil(Math.max(...dots.map((d) => d.years)));
+  const [w, h, ml, mr, mt, mb] = [Math.max(640, (y1 - y0 + 1) * 48 + 80), 360, 50, 20, 10, 30];
+  const colW = (w - ml - mr) / (y1 - y0 + 1);
+  const sy = (v) => h - mb - (v / top) * (h - mb - mt);
+  let svg = `<svg class="chart" viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;min-width:640px" role="img" aria-label="Dot plot of the years from publication to adoption for each adopted plan, by year of adoption">`;
+  for (let v = 0; v <= top; v++) svg += `<line class="grid" x1="${ml}" x2="${w - mr}" y1="${sy(v)}" y2="${sy(v)}"/><text x="${ml - 8}" y="${sy(v) + 4}" text-anchor="end">${v}</text>`;
+  for (let y = y0; y <= y1; y++) svg += `<text x="${ml + (y - y0 + 0.5) * colW}" y="${h - 8}" text-anchor="middle">${y}</text>`;
+  for (let y = y0; y <= y1; y++) {
+    // spread the plans for a year sideways so the dots don't overlap
+    const col = dots.filter((d) => d.year === y).sort((a, b) => a.years - b.years);
+    const per = Math.min(4, Math.max(1, Math.floor((colW - 6) / 8)));
+    col.forEach((d, i) => {
+      const cx = ml + (y - y0 + 0.5) * colW + ((i % per) - (per - 1) / 2) * 8;
+      svg += `<circle class="dot" data-timeline="${esc(d.ref)}" cx="${cx.toFixed(1)}" cy="${sy(d.years).toFixed(1)}" r="3.5" fill="${COLOUR.adopted}"><title>${esc(names[d.ref] ?? d.ref)}: ${d.years.toFixed(1)} years from publication (${esc(fmt(d.pub.date))}) to adoption (${esc(fmt(d.adopted.date))})</title></circle>`;
+    });
+  }
+  svg += `</svg>`;
+  return (
+    `<h3 class="govuk-heading-m" id="adoption-times-heading">Time from publication to adoption</h3>` +
+    `<p class="govuk-body">One dot for each of the ${dots.length} adopted plans with a recorded publication and adoption date, by the year the plan was adopted. The vertical axis is the number of years from publication to adoption. Select a dot to see the plan's timetable.</p>` +
+    `<div class="chart-wrap">${svg}</div>`
+  );
+}
+
 function renderJourney() {
   const byPlan = {};
   // one line per plan in the dataset, so each can show its own timetable
@@ -649,7 +682,8 @@ function renderJourney() {
       median ? ` For the ${durations.length} adopted plans with early consultation or publication dates, the median time from first recorded stage to adoption is ${median} years.` : ""
     } Select a line to see the plan's timetable.</p>` +
     `<div class="chart-key">${Object.keys(colour).map((k) => `<span class="legend-item"><span class="swatch" style="background:${colour[k]}"></span>${label[k]}</span>`).join("")}<span class="legend-item"><span class="swatch swatch--predicted"></span>Predicted</span></div>` +
-    `<div class="chart-wrap">${svg}</div>`
+    `<div class="chart-wrap">${svg}</div>` +
+    renderAdoptionTimes(journeys, names)
   );
 }
 
