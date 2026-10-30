@@ -737,7 +737,10 @@ const FLOW_STAGES = [
   ["Examination concluded", COLOUR.sound],
   ["Adopted", COLOUR.adopted],
   ["Withdrawn", COLOUR.withdrawn],
+  ["Outdated", "#b58840"],
 ];
+// a plan adopted more than this many years before is outdated
+const OUTDATED_YEARS = 5;
 const FLOW_FROM = 2010;
 const PREDICTED_COLOUR = "#6f777b";
 
@@ -764,7 +767,11 @@ function lpaStage(plans, stages, date) {
     const events = (stages[p.reference] ?? []).filter(([d]) => d <= date);
     if (!events.length) return;
     const last = events.reduce((m, [d]) => (d > m ? d : m), "");
-    const stage = events.some(([, s]) => s === 5) ? 5 : Math.max(...events.map(([, s]) => s));
+    let stage = events.some(([, s]) => s === 5) ? 5 : Math.max(...events.map(([, s]) => s));
+    if (stage === 4) {
+      const adopted = events.reduce((m, [d, s]) => (s === 4 && d > m ? d : m), "");
+      if (adopted < `${+date.slice(0, 4) - OUTDATED_YEARS}${date.slice(4)}`) stage = 6;
+    }
     if (!best || last + stage > best.key) best = { key: last + stage, stage };
   });
   return best?.stage;
@@ -800,8 +807,8 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   const [w, ml, mr, mt, mb, gap, nodeW] = [960, 150, 20, marks.length ? 40 : 24, 30, 14, 10];
   const peak = FLOW_STAGES.map((_, s) => Math.max(1, ...counts.map((c) => c[s])));
   const k = 440 / peak.reduce((a, b) => a + b, 0);
-  // adopted at the top and preparation at the bottom, as in the other charts, with withdrawn last
-  const display = [4, 3, 2, 1, 0, 5];
+  // outdated and adopted at the top and preparation at the bottom, as in the other charts, with withdrawn last
+  const display = [6, 4, 3, 2, 1, 0, 5];
   const band = [];
   let y = mt;
   display.forEach((s) => {
@@ -851,9 +858,8 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   );
   svg += `</svg>`;
   return (
-    `<h3 class="govuk-heading-m" id="${slugify(title)}">${esc(title)}</h3>` +
-    `<p class="govuk-body">${lpas.length} LPAs. ${description}</p>` +
-    `<div class="chart-wrap">${svg}</div>`
+    `<div class="chart-wrap">${svg}</div>` +
+    `<p class="govuk-body">${lpas.length} LPAs. ${description}</p>`
   );
 }
 
@@ -871,7 +877,7 @@ function renderFlows() {
   });
   return (
     `<h3 class="govuk-heading-m" id="flows-heading">How LPAs move between plan stages</h3>` +
-    `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. Plans with no timetable events are left out. A timetable for a plan that isn't in the ${esc(topic.dataset)} dataset counts for the LPA that published it. The grey years to the right are predicted from timetable dates in the future.</p>` +
+    `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. A plan adopted more than ${OUTDATED_YEARS} years before is outdated. Plans with no timetable events are left out. A timetable for a plan that isn't in the ${esc(topic.dataset)} dataset counts for the LPA that published it. The grey years to the right are predicted from timetable dates in the future.</p>` +
     flowChart(
       "Current and former LPAs",
       new Set([...current, ...former.map((f) => f.properties.reference)]),
