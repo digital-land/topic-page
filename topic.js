@@ -911,7 +911,7 @@ const events = data["timetable-events"] ?? {};
     stat(pct(own.length), "of current LPAs publish their own timetable") +
     stat(ownNoEvents.length, "publish a timetable but have no events here") +
     stat(none.length, "have no timetable data") +
-    (noticed.length ? stat(`${noticeNoEvents.length} of ${noticed.length}`, "LPAs showing signs of a new local plan on their website have no timetable events") : "") +
+    (noticed.length ? stat(`${noticeNoEvents.length} (${Math.round((noticeNoEvents.length / noticed.length) * 100)}%)`, `of the ${noticed.length} LPAs with signs of a new local plan on their website are missing timetable events`) : "") +
     (events.total
       ? stat(events.total.toLocaleString("en-GB"), "timetable events") +
         stat(evPct(events.endpoint), "events from LPAs publishing their own timetable")
