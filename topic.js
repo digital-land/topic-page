@@ -190,10 +190,10 @@ function renderStats() {
     const current = new Set(lpas.map((l) => l.reference));
     const coversCurrent = (p) => lpasOf(p).some((r) => current.has(r));
     stats.push(
-      [lpas.length, "current local planning authorities (LPAs)"],
+      [`<a class="govuk-link" href="#signals" data-open="signals">${lpas.length}</a>`, "current local planning authorities (LPAs)"],
       [share(withPlan), `of current LPAs covered by a ${esc(topic.singular)}`, plans.filter(coversCurrent), `${plural} covering current LPAs`],
       [share(withAdopted), `of current LPAs covered by an adopted ${esc(topic.singular)}`, plans.filter((p) => isAdopted(p) && coversCurrent(p)), `adopted ${plural} covering current LPAs`],
-      [share(noticeAreas), `of current LPAs have given notice of intention to commence a new ${esc(topic.singular)}`]
+      [data.notices?.length ? `<a class="govuk-link" href="#notices" data-open="notices">${share(noticeAreas)}</a>` : share(noticeAreas), `of current LPAs have given notice of intention to commence a new ${esc(topic.singular)}`]
     );
   } else {
     const current = features.filter((f) => !(f.properties["end-date"] && f.properties["end-date"] <= TODAY)).length;
@@ -998,7 +998,7 @@ const events = data["timetable-events"] ?? {};
           `<tr class="govuk-table__row${missing(l) ? " row--missing" : ""}"><td class="govuk-table__cell"><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(l.organisation)}">${esc(l.name)}</a></td><td class="govuk-table__cell">${hasPlan.has(l.reference) ? "Yes" : ""}</td><td class="govuk-table__cell">${hasEvents(l) ? "Yes" : ""}</td>${cols.map((k) => `<td class="govuk-table__cell">${cell(l, k)}</td>`).join("")}</tr>`,
       )
       .join("");
-    return `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">Table of all ${lpas.length} current LPAs and the signals found</span></summary><div class="govuk-details__text"><p class="govuk-body"><span class="swatch-missing"></span> Highlighted rows have signals of a new plan but no timetable events, so we may be missing timetable or plan data (${lpas.filter(missing).length}).</p><table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row"><th class="govuk-table__header">LPA</th><th class="govuk-table__header">Plan</th><th class="govuk-table__header">Timetable events</th>${cols.map((k) => `<th class="govuk-table__header">${SIGNAL[k]}</th>`).join("")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`;
+    return `<details class="govuk-details" id="signals"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">Table of all ${lpas.length} current LPAs and the signals found</span></summary><div class="govuk-details__text"><p class="govuk-body"><span class="swatch-missing"></span> Highlighted rows have signals of a new plan but no timetable events, so we may be missing timetable or plan data (${lpas.filter(missing).length}).</p><table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row"><th class="govuk-table__header">LPA</th><th class="govuk-table__header">Plan</th><th class="govuk-table__header">Timetable events</th>${cols.map((k) => `<th class="govuk-table__header">${SIGNAL[k]}</th>`).join("")}</tr></thead><tbody class="govuk-table__body">${rows}</tbody></table></div></details>`;
   };
   return (
     `<h3 class="govuk-heading-m" id="providers-heading">LPAs providing timetable data</h3>` +
