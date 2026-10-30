@@ -819,7 +819,7 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
     svg += `<rect x="${x}" y="${mt - 6}" width="${w - mr - x + 4}" height="${h - mb - mt + 6}" fill="#f3f2f1"/><text x="${(x + w - mr) / 2}" y="${mt - 10}" text-anchor="middle" font-size="12" fill="#505a5f">Predicted</text>`;
   }
   FLOW_STAGES.forEach(([label, colour], s) => {
-    svg += `<line class="grid" x1="${ml}" x2="${w - mr}" y1="${band[s].mid}" y2="${band[s].mid}"/><text x="${ml - 12}" y="${band[s].mid + 4}" text-anchor="end">${label}</text>`;
+    svg += `<line class="grid" x1="${ml}" x2="${w - mr}" y1="${band[s].top}" y2="${band[s].top}"/><text x="${ml - 12}" y="${band[s].top + 4}" text-anchor="end">${label}</text>`;
   });
   years.forEach((yr, i) => (svg += `<text x="${colX(i) + nodeW / 2}" y="${h - 8}" text-anchor="middle">${yr}</text>`));
   marks.forEach(([yr, text], i) => {
@@ -828,8 +828,8 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   });
   // ribbons first, so the nodes sit on top
   flows.forEach((m, i) => {
-    const out = FLOW_STAGES.map((_, s) => band[s].mid - nodeH(i, s) / 2);
-    const inn = FLOW_STAGES.map((_, s) => band[s].mid - nodeH(i + 1, s) / 2);
+    const out = FLOW_STAGES.map((_, s) => band[s].top);
+    const inn = FLOW_STAGES.map((_, s) => band[s].top);
     display.forEach((a) => {
       for (const b of display) {
         const v = m[a][b];
@@ -846,7 +846,7 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   counts.forEach((c, i) =>
     c.forEach((v, s) => {
       if (!v) return;
-      svg += `<rect x="${colX(i)}" y="${band[s].mid - nodeH(i, s) / 2}" width="${nodeW}" height="${Math.max(nodeH(i, s), 1.5)}" fill="${isFuture(i) ? PREDICTED_COLOUR : FLOW_STAGES[s][1]}"><title>${years[i]}: ${v} LPA${v === 1 ? "" : "s"} at ${FLOW_STAGES[s][0].toLowerCase()}${isFuture(i) ? " (predicted)" : ""}</title></rect>`;
+      svg += `<rect x="${colX(i)}" y="${band[s].top}" width="${nodeW}" height="${Math.max(nodeH(i, s), 1.5)}" fill="${isFuture(i) ? PREDICTED_COLOUR : FLOW_STAGES[s][1]}"><title>${years[i]}: ${v} LPA${v === 1 ? "" : "s"} at ${FLOW_STAGES[s][0].toLowerCase()}${isFuture(i) ? " (predicted)" : ""}</title></rect>`;
     })
   );
   svg += `</svg>`;
