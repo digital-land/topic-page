@@ -965,6 +965,8 @@ function renderTimetableProviders() {
   const covered = new Set();
   data.plans.filter((p) => planRefs.has(p.reference)).forEach((p) => lpasOf(p).forEach((r) => covered.add(r)));
   const pct = (n) => `${n} (${Math.round((n / lpas.length) * 100)}%)`;
+  // counted as plans, as several plans can share a reference
+  const withTimetable = data.plans.filter((p) => planRefs.has(p.reference));
   // events for one of its plans, or dated rows it published, such as for a plan not yet in the dataset
   const hasEvents = (l) => covered.has(l.reference) || l["timetable-data"];
   const own = lpas.filter((l) => l["timetable-endpoint"]);
@@ -978,9 +980,13 @@ function renderTimetableProviders() {
 const events = data["timetable-events"] ?? {};
   const evPct = (n) => `${n.toLocaleString("en-GB")} (${Math.round((n / events.total) * 100)}%)`;
   const stat = (n, l) => `<div class="stat"><strong>${n}</strong><span>${l}</span></div>`;
-  const list = (title, items) =>
+  // numbers open the list of LPAs they count
+  const lpaLink = (text, id, items) => (items.length ? `<a class="govuk-link" href="#${id}" data-open="${id}">${text}</a>` : text);
+  const list = (title, items, id) =>
     items.length
-      ? `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">${title}</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${items
+      ? `<details class="govuk-details" id="${id}"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">${title}</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${items
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name))
           .map((l) => `<li><a class="govuk-link" href="https://provide.planning.data.gov.uk/organisations/${esc(l.organisation)}">${esc(l.name)}</a></li>`)
           .join("")}</ul></div></details>`
       : "";
@@ -1002,7 +1008,7 @@ const events = data["timetable-events"] ?? {};
     const noPlan = items.filter((l) => !hasPlan.has(l.reference));
     const noEvents = items.filter((l) => hasPlan.has(l.reference));
     const group = (title, xs) => (xs.length ? `<h4 class="govuk-heading-s">${title} (${xs.length})</h4><ul class="govuk-list govuk-list--bullet">${xs.map(row).join("")}</ul>` : "");
-    return `<details class="govuk-details"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${items.length} LPAs showing signs of a new local plan but with no timetable events</span></summary><div class="govuk-details__text"><p class="govuk-body">Found by searching LPA websites for commencement notices, gateway assessments, plan timetables, calls for sites and similar. The search is automatic, so some pages may not be about a new plan, and some LPAs may be missed.</p>${group("No plan on the platform", noPlan)}${group("Plan on the platform but no timetable events", noEvents)}</div></details>`;
+    return `<details class="govuk-details" id="notice-no-events"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${items.length} LPAs showing signs of a new local plan but with no timetable events</span></summary><div class="govuk-details__text"><p class="govuk-body">Found by searching LPA websites for commencement notices, gateway assessments, plan timetables, calls for sites and similar. The search is automatic, so some pages may not be about a new plan, and some LPAs may be missed.</p>${group("No plan on the platform", noPlan)}${group("Plan on the platform but no timetable events", noEvents)}</div></details>`;
   };
   const signalTable = () => {
     const cols = Object.keys(SIGNAL);
@@ -1020,22 +1026,24 @@ const events = data["timetable-events"] ?? {};
   };
   return (
     `<h3 class="govuk-heading-m" id="providers-heading">LPAs providing timetable data</h3>` +
-    `<p class="govuk-body">Of ${lpas.length} current LPAs, ${pct(own.length)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${pct(withEvents.length)} have dated timetable events, either for at least one of their plans or published by them for a plan that isn't in the ${esc(topic.dataset)} dataset or doesn't list them. This includes events that did not come from an endpoint of their own.</p>` +
+    `<p class="govuk-body">Of ${lpas.length} current LPAs, ${lpaLink(pct(own.length), "lpas-own-timetable", own)} publish their own plan timetable, through ${data["timetable-endpoints"]} endpoints on the platform. An LPA counts if it, or a planning group it belongs to, has an endpoint. ${lpaLink(pct(withEvents.length), "lpas-with-timetable", withEvents)} have dated timetable events, either for at least one of their plans or published by them for a plan that isn't in the ${esc(topic.dataset)} dataset or doesn't list them. This includes events that did not come from an endpoint of their own.</p>` +
     `<div class="stats">` +
     // timetables first, then LPA provision, then the events in them
-    stat(`${planRefs.size} (${Math.round((planRefs.size / data.plans.length) * 100)}%)`, `of ${data.plans.length} ${topic.singular}s have a timetable`) +
-    stat(pct(withEvents.length), "of current LPAs have a timetable") +
-    stat(pct(own.length), "of current LPAs publish their own timetable") +
-    stat(ownNoEvents.length, "publish a timetable but have no events here") +
-    stat(none.length, "have no timetable data") +
-    (noticed.length ? stat(`${noticeNoEvents.length} (${Math.round((noticeNoEvents.length / noticed.length) * 100)}%)`, `of the ${noticed.length} LPAs with signs of a new local plan on their website are missing timetable events`) : "") +
+    stat(listLink(`${withTimetable.length} (${Math.round((withTimetable.length / data.plans.length) * 100)}%)`, `${topic.singular}s with a timetable`, withTimetable), `of ${data.plans.length} ${topic.singular}s have a timetable`) +
+    stat(lpaLink(pct(withEvents.length), "lpas-with-timetable", withEvents), "of current LPAs have a timetable") +
+    stat(lpaLink(pct(own.length), "lpas-own-timetable", own), "of current LPAs publish their own timetable") +
+    stat(lpaLink(ownNoEvents.length, "own-no-events", ownNoEvents), "publish a timetable but have no events here") +
+    stat(lpaLink(none.length, "no-timetable", none), "have no timetable data") +
+    (noticed.length ? stat(lpaLink(`${noticeNoEvents.length} (${Math.round((noticeNoEvents.length / noticed.length) * 100)}%)`, "notice-no-events", noticeNoEvents), `of the ${noticed.length} LPAs with signs of a new local plan on their website are missing timetable events`) : "") +
     (events.total
       ? stat(events.total.toLocaleString("en-GB"), "timetable events") +
-        stat(evPct(events.endpoint), "events from LPAs publishing their own timetable")
+        stat(lpaLink(evPct(events.endpoint), "lpas-own-timetable", own), "events from LPAs publishing their own timetable")
       : "") +
     `</div>` +
-    list(`List the ${ownNoEvents.length} LPAs that publish a timetable but have no events here`, ownNoEvents) +
-    list(`List the ${none.length} LPAs with no timetable data`, none) +
+    list(`List the ${withEvents.length} current LPAs with a timetable`, withEvents, "lpas-with-timetable") +
+    list(`List the ${own.length} current LPAs that publish their own timetable`, own, "lpas-own-timetable") +
+    list(`List the ${ownNoEvents.length} LPAs that publish a timetable but have no events here`, ownNoEvents, "own-no-events") +
+    list(`List the ${none.length} LPAs with no timetable data`, none, "no-timetable") +
     noticeList(noticeNoEvents) +
     signalTable()
   );
