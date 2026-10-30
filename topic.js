@@ -590,9 +590,9 @@ const isPredicted = (e) => Boolean(e.earliest) || e.event.startsWith("estimated-
 function renderAdoptionTimes(journeys, names) {
   const dots = journeys
     .filter((j) => j.outcome === "adopted")
-    .map((j) => ({ ref: j.ref, pub: j.points.find((p) => p.stage === 1 && !p.predicted), adopted: j.points.find((p) => p.stage === 4 && !p.predicted) }))
+    .map((j) => ({ ref: j.ref, pub: j.points.find((p) => p.stage === 1), adopted: j.points.find((p) => p.stage === 4) }))
     .filter((d) => d.pub && d.adopted && d.adopted.t >= d.pub.t)
-    .map((d) => ({ ...d, year: new Date(d.adopted.t).getUTCFullYear(), years: (d.adopted.t - d.pub.t) / 864e5 / 365.25 }));
+    .map((d) => ({ ...d, predicted: d.pub.predicted || d.adopted.predicted, year: new Date(d.adopted.t).getUTCFullYear(), years: (d.adopted.t - d.pub.t) / 864e5 / 365.25 }));
   if (!dots.length) return "";
   const [y0, y1] = [Math.min(...dots.map((d) => d.year)), Math.max(...dots.map((d) => d.year))];
   const top = Math.ceil(Math.max(...dots.map((d) => d.years)));
@@ -608,13 +608,14 @@ function renderAdoptionTimes(journeys, names) {
     const per = Math.min(4, Math.max(1, Math.floor((colW - 6) / 8)));
     col.forEach((d, i) => {
       const cx = ml + (y - y0 + 0.5) * colW + ((i % per) - (per - 1) / 2) * 8;
-      svg += `<circle class="dot" data-timeline="${esc(d.ref)}" cx="${cx.toFixed(1)}" cy="${sy(d.years).toFixed(1)}" r="3.5" fill="${COLOUR.adopted}"><title>${esc(names[d.ref] ?? d.ref)}: ${d.years.toFixed(1)} years from publication (${esc(fmt(d.pub.date))}) to adoption (${esc(fmt(d.adopted.date))})</title></circle>`;
+      svg += `<circle class="dot" data-timeline="${esc(d.ref)}" cx="${cx.toFixed(1)}" cy="${sy(d.years).toFixed(1)}" r="3.5" fill="${d.predicted ? PREDICTED_COLOUR : COLOUR.adopted}"><title>${esc(names[d.ref] ?? d.ref)}: ${d.years.toFixed(1)} years from publication (${esc(fmt(d.pub.date))}) to adoption (${esc(fmt(d.adopted.date))})${d.predicted ? ", predicted" : ""}</title></circle>`;
     });
   }
   svg += `</svg>`;
   return (
     `<h3 class="govuk-heading-m" id="adoption-times-heading">Time from publication to adoption</h3>` +
-    `<p class="govuk-body">One dot for each of the ${dots.length} adopted plans with a recorded publication and adoption date, by the year the plan was adopted. The vertical axis is the number of years from publication to adoption. Select a dot to see the plan's timetable.</p>` +
+    `<p class="govuk-body">One dot for each of the ${dots.length} adopted plans with a publication and adoption date, by the year the plan was adopted. Grey dots are predicted from timetable dates in the future. The vertical axis is the number of years from publication to adoption. Select a dot to see the plan's timetable.</p>` +
+    `<div class="chart-key"><span class="legend-item"><span class="swatch" style="background:${COLOUR.adopted}"></span>Adopted</span><span class="legend-item"><span class="swatch" style="background:${PREDICTED_COLOUR}"></span>Predicted</span></div>` +
     `<div class="chart-wrap">${svg}</div>`
   );
 }
