@@ -770,10 +770,12 @@ function lpaStage(plans, stages, date) {
   return best?.stage;
 }
 
-function flowChart(title, refs, planFilter, description, marks = [], showPredicted = true) {
+// ends maps the reference of an LPA that no longer exists to the date it ended
+function flowChart(title, refs, planFilter, description, marks = [], showPredicted = true, ends = {}) {
   const { actual, predicted } = planStages();
   const byLpa = {};
   [...data.plans, ...(data["timetable-plans"] ?? [])].filter(planFilter).forEach((p) => lpasOf(p).filter((r) => refs.has(r)).forEach((r) => (byLpa[r] ??= []).push(p)));
+  const lpaRefs = Object.keys(byLpa);
   const lpas = Object.values(byLpa);
   if (!lpas.length) return "";
   const thisYear = new Date(TODAY).getUTCFullYear();
@@ -782,7 +784,7 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   const years = Array.from({ length: Math.min(showPredicted ? lastPredicted : thisYear, thisYear + 6) - FLOW_FROM + 1 }, (_, i) => FLOW_FROM + i);
   const isFuture = (i) => years[i] > thisYear;
   const withPredicted = Object.fromEntries([...new Set([...Object.keys(actual), ...Object.keys(predicted)])].map((r) => [r, [...(actual[r] ?? []), ...(predicted[r] ?? [])]]));
-  const at = years.map((y) => lpas.map((plans) => (y > thisYear ? lpaStage(plans, withPredicted, `${y}-12-31`) : lpaStage(plans, actual, y < thisYear ? `${y}-12-31` : TODAY))));
+  const at = years.map((y) => lpas.map((plans, li) => (ends[lpaRefs[li]] && y > +ends[lpaRefs[li]].slice(0, 4) ? undefined : y > thisYear ? lpaStage(plans, withPredicted, `${y}-12-31`) : lpaStage(plans, actual, y < thisYear ? `${y}-12-31` : TODAY))));
   const n = FLOW_STAGES.length;
   const counts = at.map((col) => FLOW_STAGES.map((_, s) => col.filter((v) => v === s).length));
   const flows = years.slice(1).map((_, i) => {
@@ -859,18 +861,23 @@ function renderFlows() {
   const former = data.boundaries.features.filter((f) => f.properties.lpa && f.properties["end-date"] && f.properties["end-date"] <= TODAY);
   const ended = {};
   former.forEach((f) => (ended[f.properties["end-date"].slice(0, 4)] = (ended[f.properties["end-date"].slice(0, 4)] ?? 0) + 1));
+  // an LPA that still exists has not ended, even if an old boundary of the same reference has
+  const endDates = {};
+  former.forEach((f) => {
+    const ref = f.properties.reference;
+    if (!current.has(ref) && (!endDates[ref] || f.properties["end-date"] > endDates[ref])) endDates[ref] = f.properties["end-date"];
+  });
   return (
     `<h3 class="govuk-heading-m" id="flows-heading">How LPAs move between plan stages</h3>` +
     `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. Plans with no timetable events are left out. A timetable for a plan that isn't in the ${esc(topic.dataset)} dataset counts for the LPA that published it. The grey years to the right are predicted from timetable dates in the future.</p>` +
-    flowChart("Plans covering one LPA", current, (p) => lpasOf(p).length === 1, "Current LPAs, by the plans that cover only that LPA.") +
-    flowChart("Joint plans", current, (p) => lpasOf(p).length > 1, "Current LPAs, by the plans they share with other LPAs. Each LPA is counted once, however many LPAs share the plan.") +
     flowChart(
-      "Reorganised LPAs",
-      new Set(former.map((f) => f.properties.reference)),
+      "Current and former LPAs",
+      new Set([...current, ...former.map((f) => f.properties.reference)]),
       () => true,
-      `Authorities that no longer exist, which were merged or replaced. Dashed lines mark the years they ended: ${Object.entries(ended).map(([y, c]) => `${c} in ${y}`).join(", ")}.`,
+      `Current LPAs, and authorities that no longer exist, which were merged or replaced. Each LPA is counted once, however many plans it has or shares with other LPAs. Dashed lines mark the years authorities ended: ${Object.entries(ended).map(([y, c]) => `${c} in ${y}`).join(", ")}.`,
       Object.entries(ended).map(([y, c]) => [+y, `${c} ended`]),
-      false
+      true,
+      endDates
     )
   );
 }
