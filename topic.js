@@ -892,7 +892,6 @@ function renderFlows() {
     if (!current.has(ref) && (!endDates[ref] || f.properties["end-date"] > endDates[ref])) endDates[ref] = f.properties["end-date"];
   });
   return (
-    `<h3 class="govuk-heading-m" id="flows-heading">How LPAs move between plan stages</h3>` +
     `<p class="govuk-body">At the end of each year, each LPA is placed at the stage of its most recently active plan, using actual dates from the timetable. Ribbons show LPAs moving between stages from one year to the next. An LPA that starts a new plan after adopting one moves back to preparation. A plan adopted more than ${OUTDATED_YEARS} years before is outdated. Plans with no timetable events are left out. A timetable for a plan that isn't in the ${esc(topic.dataset)} dataset counts for the LPA that published it. The grey years to the right are predicted from timetable dates in the future.</p>` +
     flowChart(
       "Current and former LPAs",
