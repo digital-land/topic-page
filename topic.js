@@ -159,6 +159,9 @@ function listLink(text, label, plans) {
   return `<a class="govuk-link" href="#search" data-list="${id}">${text}</a>`;
 }
 
+// the areas with an unknown status are listed under the coverage charts
+const unknownAreasLink = (text) => `<a class="govuk-link" href="#unknown-areas" data-open="unknown-areas">${text}</a>`;
+
 function renderStats() {
   const plans = data.plans;
   const adopted = plans.filter(isAdopted).length;
@@ -407,7 +410,7 @@ function renderMap() {
     });
   $("legend").innerHTML =
     stateDefs()
-      .map(([s, c, l]) => `<div class="legend-item"><span class="swatch"${c ? ` style="background:${c}"` : ""}></span>${l}: <strong>${listLink(counts[s] ?? 0, l, plansInState(s, features.filter((f) => !f.properties.former)))}</strong></div>`)
+      .map(([s, c, l]) => `<div class="legend-item"><span class="swatch"${c ? ` style="background:${c}"` : ""}></span>${l}: <strong>${s === "unknown" && counts[s] ? unknownAreasLink(counts[s]) : listLink(counts[s] ?? 0, l, plansInState(s, features.filter((f) => !f.properties.former)))}</strong></div>`)
       .join("") +
     `<p class="govuk-body-s">${listLink(noBoundary, `${topic.singular}s with no boundary`, plansWithoutBoundary())} of ${data.plans.length} plans have ${data.events.length ? `<a class="govuk-link" href="#boundaries-heading" data-open="missing-boundaries">no boundary</a>` : "no boundary"} on the map. Select an area to see its plans.</p>`;
   document.querySelector(".map-panel__close").addEventListener("click", () => toggleMapPanel(false));
@@ -439,7 +442,7 @@ function stackedBar(title, intro, segments) {
   });
   svg += `</svg>`;
   const key = segments
-    .map((s) => `<div class="legend-item"><span class="swatch"${s.colour ? ` style="background:${s.colour}"` : ""}></span>${esc(s.label)}: <strong>${listLink(esc(s.text), s.label, s.plans ?? [])}</strong></div>`)
+    .map((s) => `<div class="legend-item"><span class="swatch"${s.colour ? ` style="background:${s.colour}"` : ""}></span>${esc(s.label)}: <strong>${s.link ? s.link(esc(s.text)) : listLink(esc(s.text), s.label, s.plans ?? [])}</strong></div>`)
     .join("");
   return `<h3 class="govuk-heading-m" id="${slugify(title)}">${esc(title)}</h3><p class="govuk-body">${intro}</p><div class="chart-wrap">${svg}</div><div class="chart-key">${key}</div>`;
 }
@@ -471,7 +474,7 @@ function renderCoverage() {
   const chart1 = stackedBar(
     "Active areas",
     `${current.length} current areas on the map, by the status of their plans. These are the numbers in the map key.${explanation}`,
-    defs.map(([s, colour, label]) => ({ label, colour, plans: plansInState(s, current), value: areas[s] ?? 0, short: `${areas[s] ?? 0}`, text: `${areas[s] ?? 0} (${pct(areas[s] ?? 0, current.length)})` }))
+    defs.map(([s, colour, label]) => ({ label, colour, plans: plansInState(s, current), link: s === "unknown" && areas[s] ? unknownAreasLink : null, value: areas[s] ?? 0, short: `${areas[s] ?? 0}`, text: `${areas[s] ?? 0} (${pct(areas[s] ?? 0, current.length)})` }))
   );
 
   // 2. the same, weighted by the size of each LPA. Joint planning groups overlap their LPAs, so only LPAs are used.
@@ -510,7 +513,19 @@ function renderCoverage() {
     `${data.plans.length} ${topic.singular}s, by status. A plan with gateway events or a notice of intention to commence in its timetable is under the new system.`,
     defs.map(([s, colour]) => ({ label: planLabels[s], colour, plans: data.plans.filter((p) => planState(p) === s), value: plans[s] ?? 0, short: `${plans[s] ?? 0}`, text: `${plans[s] ?? 0} (${pct(plans[s] ?? 0, data.plans.length)})` }))
   );
-  $("coverage").innerHTML = chart1 + chart2 + chart3 + renderNotices() + renderTemplates();
+  const unknownAreas = current
+    .filter((f) => boundaryState(planByRef[f.properties.reference] ?? [], f.properties.reference) === "unknown")
+    .sort((a, b) => boundaryName(a).localeCompare(boundaryName(b)));
+  const planLink = (p) => `<a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(p.entity)}">${esc(p.name)}</a>`;
+  const unknownList = unknownAreas.length
+    ? `<details class="govuk-details" id="unknown-areas"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${unknownAreas.length} areas with ${quality ? "no authoritative plan data" : "an unknown status"}</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${unknownAreas
+        .map((f) => {
+          const plans = planByRef[f.properties.reference] ?? [];
+          return `<li>${esc(boundaryName(f))}: ${plans.length ? plans.map(planLink).join(", ") : `no ${topic.singular}s`}</li>`;
+        })
+        .join("")}</ul></div></details>`
+    : "";
+  $("coverage").innerHTML = chart1 + unknownList + chart2 + chart3 + renderNotices() + renderTemplates();
 }
 
 // template records for a new local plan: unused ones, left out of the plans, and ones in use
