@@ -1102,6 +1102,7 @@ function renderIssues() {
   return (
     `<h3 class="govuk-heading-m" id="issues-heading">Plans with timetable problems</h3>` +
     `<p class="govuk-body">${data.issues.length} plans reuse a reference for a later plan cycle, or have stages out of date order. The events listed are left out of the charts above.</p>` +
+    `<details class="govuk-details" id="issues"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${data.issues.length} plans</span></summary><div class="govuk-details__text">` +
     `<table class="govuk-table"><thead class="govuk-table__head"><tr class="govuk-table__row"><th scope="col" class="govuk-table__header">Plan</th><th scope="col" class="govuk-table__header">Problem</th><th scope="col" class="govuk-table__header govuk-table__header--numeric">Events left out</th></tr></thead><tbody class="govuk-table__body">` +
     data.issues
       .map(
@@ -1109,7 +1110,7 @@ function renderIssues() {
           `<tr class="govuk-table__row"><td class="govuk-table__cell">${planOrganisationLink(i.plan, names[i.plan] ?? i.plan)} <a class="govuk-link" href="#timeline-heading" data-timeline="${esc(i.plan)}">timeline</a></td><td class="govuk-table__cell">${i.reasons.map(esc).join("; ")}</td><td class="govuk-table__cell govuk-table__cell--numeric">${i.events}</td></tr>`
       )
       .join("") +
-    `</tbody></table>`
+    `</tbody></table></div></details>`
   );
 }
 
