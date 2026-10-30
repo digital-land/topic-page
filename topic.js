@@ -521,7 +521,9 @@ function renderCoverage() {
     ? `<details class="govuk-details" id="unknown-areas"><summary class="govuk-details__summary"><span class="govuk-details__summary-text">List the ${unknownAreas.length} areas with ${quality ? "no authoritative plan data" : "an unknown status"}</span></summary><div class="govuk-details__text"><ul class="govuk-list govuk-list--bullet">${unknownAreas
         .map((f) => {
           const plans = planByRef[f.properties.reference] ?? [];
-          return `<li>${esc(boundaryName(f))}: ${plans.length ? plans.map(planLink).join(", ") : `no ${topic.singular}s`}</li>`;
+          const org = f.properties["organisation-entity"];
+          const name = org ? `<a class="govuk-link" href="https://www.planning.data.gov.uk/entity/${esc(org)}">${esc(boundaryName(f))}</a>` : esc(boundaryName(f));
+          return `<li>${name}: ${plans.length ? plans.map(planLink).join(", ") : `no ${topic.singular}s`}</li>`;
         })
         .join("")}</ul></div></details>`
     : "";

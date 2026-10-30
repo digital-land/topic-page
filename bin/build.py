@@ -473,6 +473,23 @@ def build(slug, topic, quality=None):
     lpas, endpoints, organisations, providers = (
         current_lpas() if topic.get("currentLpas") else ([], 0, {}, set())
     )
+    # the organisation behind each area, by LPA reference or else by name (planning groups)
+    org_by_area = {}
+    for o in organisations.values():
+        if o["end-date"]:
+            continue
+        for key in (o["local-planning-authority"], o["name"]):
+            if key:
+                org_by_area.setdefault(key, o["entity"])
+    for f in features:
+        p = f["properties"]
+        entity = (
+            org_by_area.get(p["reference"])
+            or org_by_area.get(p["name"])
+            or org_by_area.get(f"{p['name']} Local Planning Group")
+        )
+        if entity:
+            p["organisation-entity"] = entity
     # timetables for plans not in the plan dataset, credited to the current LPAs that
     # published them, so they count in the timeline charts but not as plans
     lpa_refs = {l["organisation"]: l["reference"] for l in lpas if l["reference"]}
