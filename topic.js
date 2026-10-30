@@ -800,11 +800,13 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   const [w, ml, mr, mt, mb, gap, nodeW] = [960, 150, 20, marks.length ? 40 : 24, 30, 14, 10];
   const peak = FLOW_STAGES.map((_, s) => Math.max(1, ...counts.map((c) => c[s])));
   const k = 440 / peak.reduce((a, b) => a + b, 0);
+  // adopted at the top and preparation at the bottom, as in the other charts, with withdrawn last
+  const display = [4, 3, 2, 1, 0, 5];
   const band = [];
   let y = mt;
-  peak.forEach((p, s) => {
-    const hgt = Math.max(p * k, 16);
-    band.push({ top: y, mid: y + hgt / 2 });
+  display.forEach((s) => {
+    const hgt = Math.max(peak[s] * k, 16);
+    band[s] = { top: y, mid: y + hgt / 2 };
     y += hgt + gap;
   });
   const h = y - gap + mb;
@@ -828,8 +830,8 @@ function flowChart(title, refs, planFilter, description, marks = [], showPredict
   flows.forEach((m, i) => {
     const out = FLOW_STAGES.map((_, s) => band[s].mid - nodeH(i, s) / 2);
     const inn = FLOW_STAGES.map((_, s) => band[s].mid - nodeH(i + 1, s) / 2);
-    FLOW_STAGES.forEach((_, a) => {
-      for (let b = 0; b < n; b++) {
+    display.forEach((a) => {
+      for (const b of display) {
         const v = m[a][b];
         if (!v) continue;
         const [x0, x1, t, hh] = [colX(i) + nodeW, colX(i + 1), v * k, null];
