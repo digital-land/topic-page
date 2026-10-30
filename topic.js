@@ -614,7 +614,7 @@ function renderAdoptionTimes(journeys, names) {
   svg += `</svg>`;
   return (
     `<h3 class="govuk-heading-m" id="adoption-times-heading">Time from publication to adoption</h3>` +
-    `<p class="govuk-body">One dot for each of the ${dots.length} adopted plans with a publication and adoption date, by the year the plan was adopted. Grey dots are predicted from timetable dates in the future. The vertical axis is the number of years from publication to adoption. Select a dot to see the plan's timetable.</p>` +
+    `<p class="govuk-body">One dot for each of the ${dots.length} plans we have timetable data for with both a publication and an adoption date, by the year of adoption. Grey dots are predicted from timetable dates in the future. The vertical axis is the number of years from publication to adoption. Select a dot to see the plan's timetable.</p>` +
     `<div class="chart-key"><span class="legend-item"><span class="swatch" style="background:${COLOUR.adopted}"></span>Adopted</span><span class="legend-item"><span class="swatch" style="background:${PREDICTED_COLOUR}"></span>Predicted</span></div>` +
     `<div class="chart-wrap">${svg}</div>`
   );
