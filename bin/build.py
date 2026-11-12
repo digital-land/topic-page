@@ -407,11 +407,17 @@ def build(slug, topic, quality=None):
                 }
             )
     fields = PLAN_FIELDS + [topic["boundaryField"], topic["authorityField"]]
+    # boundaries by the set of LPAs they cover, so joint ones match in any order
+    by_lpas = {frozenset(f["properties"]["reference"].split("-")): f["properties"]["reference"] for f in features}
     rows = []
     for p in plans:
         row = {k: p.get(k, "") for k in fields}
         row["boundary"] = row.pop(topic["boundaryField"])
         row["authorities"] = row.pop(topic["authorityField"])
+        # plans with no boundary use the boundary of the LPAs they list
+        if not row["boundary"]:
+            lpas = frozenset(a for a in row["authorities"].split(";") if a)
+            row["boundary"] = by_lpas.get(lpas, "")
         row["authority-name"] = names.get(row["boundary"], "")
         rows.append(row)
     refs = {p["reference"] for p in plans}
